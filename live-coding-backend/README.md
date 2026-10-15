@@ -1,25 +1,16 @@
 # Live Coding Classroom Backend
 
-Backend Node.js + WebSocket untuk menerima perubahan file dari VS Code Extension dosen dan membroadcast perubahan tersebut ke web mahasiswa.
+Backend Node.js (Express + WebSocket + SQLite) yang menerima kode dari VS Code Extension dosen, menyimpannya per pertemuan, dan menyiarkannya ke web mahasiswa.
 
-## Fitur
+## Konsep
 
-- WebSocket server untuk dosen dan mahasiswa.
-- Session berbasis `sessionId`.
-- Role `teacher` dan `student`.
-- Teacher token untuk mencegah mahasiswa mengirim update file.
-- Broadcast real-time:
-  - `project:snapshot`
-  - `tree:update`
-  - `file:create`
-  - `file:update`
-  - `file:delete`
-  - `teacher:active-file`
-- REST endpoint sederhana untuk health check dan membuat session.
-- Validasi path untuk mencegah path traversal.
-- Limit ukuran file.
+- **Mata kuliah** punya kode akses sendiri (misalnya `PM-7K3XQ2`). Mahasiswa hanya bisa membuka mata kuliah yang kodenya mereka punya.
+- **Pertemuan** menyimpan snapshot kode terakhir. Status: `draft` (belum dimulai), `live`, `finished`. Bisa ditampilkan atau disembunyikan.
+- **Lanjutan**: pertemuan bisa menandai `continuesFrom` pertemuan lain. File diberi label `new`/`modified` dibanding pertemuan tersebut.
 
-## Instalasi
+## Menjalankan
+
+Butuh Node.js 22.13 atau lebih baru (memakai `node:sqlite` bawaan).
 
 ```bash
 npm install
@@ -27,133 +18,60 @@ cp .env.example .env
 npm run dev
 ```
 
-Server berjalan di:
+| Variabel | Keterangan |
+|---|---|
+| `PORT` | Port HTTP/WebSocket, default `3000` |
+| `TEACHER_TOKEN` | Token dosen untuk halaman admin dan extension. **Wajib diganti di server publik.** |
+| `PUBLIC_BASE_URL` | URL frontend mahasiswa, dipakai untuk membuat link pertemuan |
+| `MAX_FILE_SIZE_BYTES` | Ukuran maksimal satu file teks |
+| `DB_PATH` | Lokasi file database, default `data/livecoding.db` |
 
-```text
-http://localhost:3000
-ws://localhost:3000
-```
+Backup data cukup dengan menyalin file database.
 
-## Environment
+## REST API
 
-```env
-PORT=3000
-TEACHER_TOKEN=change-this-secret-token
-PUBLIC_BASE_URL=http://localhost:5173
-MAX_FILE_SIZE_BYTES=524288
-```
+Admin (header `Authorization: Bearer <TEACHER_TOKEN>`):
 
-Pastikan `TEACHER_TOKEN` sama dengan token yang digunakan oleh VS Code Extension.
+| Method | Path | Keterangan |
+|---|---|---|
+| GET | `/api/admin/courses` | Daftar mata kuliah |
+| POST | `/api/admin/courses` | `{ name }` |
+| PATCH | `/api/admin/courses/:id` | `{ name?, codeActive? }` |
+| POST | `/api/admin/courses/:id/regenerate-code` | Buat kode akses baru |
+| DELETE | `/api/admin/courses/:id` | Hapus beserta semua pertemuan |
+| GET | `/api/admin/courses/:id/meetings` | Semua pertemuan, termasuk draft/tersembunyi |
+| POST | `/api/admin/courses/:id/meetings` | `{ title?, number? }` |
+| PATCH | `/api/admin/meetings/:id` | `{ title?, visible?, number? }` |
+| DELETE | `/api/admin/meetings/:id` | Ditolak bila sedang live |
 
-## Endpoint REST
+Mahasiswa:
 
-### Health Check
+| Method | Path | Keterangan |
+|---|---|---|
+| POST | `/api/student/access` | `{ code }` → mata kuliah |
+| GET | `/api/student/courses/:slug` | Header `X-Access-Code`; pertemuan yang tampil dan sudah dimulai |
 
-```http
-GET /health
-```
+## WebSocket
 
-Response:
+| Event | Dari | Isi |
+|---|---|---|
+| `teacher:join` | dosen | `meetingId, teacherToken, projectName, continuesFrom` |
+| `teacher:joined` | server | `studentUrl, accessCode, courseName` |
+| `student:join` | mahasiswa | `meetingId, accessCode` |
+| `session:init` | server | `course, meeting, tree, activeFile, changes, hasTeacher` |
+| `project:snapshot`, `tree:update` | dosen | `tree` |
+| `file:create`, `file:update` | dosen | `path, content, language` (diteruskan dengan `change`) |
+| `asset:metadata`, `file:delete`, `teacher:active-file` | dosen | `path` |
+| `teacher:leave` | dosen | menandai pertemuan selesai |
+| `file:request` | mahasiswa | `path` → `file:content` / `asset:content` / `file:not-found` |
+| `teacher:disconnected`, `meeting:closed`, `error` | server | `error.reason`: `invalid_code`, `unavailable`, `rejected` |
 
-```json
-{
-  "status": "ok",
-  "service": "live-coding-backend"
-}
-```
+## Uji cepat
 
-### Buat Session
-
-```http
-POST /api/sessions
-```
-
-Response:
-
-```json
-{
-  "sessionId": "abc123",
-  "studentUrl": "http://localhost:5173/session/abc123",
-  "createdAt": "2026-05-05T00:00:00.000Z"
-}
-```
-
-### Lihat Session Aktif
-
-```http
-GET /api/sessions
-```
-
-## Event WebSocket
-
-### Teacher Join
-
-```json
-{
-  "type": "teacher:join",
-  "sessionId": "abc123",
-  "projectName": "Laravel Demo",
-  "teacherToken": "change-this-secret-token"
-}
-```
-
-### Student Join
-
-```json
-{
-  "type": "student:join",
-  "sessionId": "abc123"
-}
-```
-
-### Project Snapshot
-
-```json
-{
-  "type": "project:snapshot",
-  "sessionId": "abc123",
-  "tree": []
-}
-```
-
-### File Update
-
-```json
-{
-  "type": "file:update",
-  "sessionId": "abc123",
-  "path": "routes/web.php",
-  "content": "<?php echo 'hello';",
-  "language": "php"
-}
-```
-
-### Request File dari Mahasiswa
-
-```json
-{
-  "type": "file:request",
-  "sessionId": "abc123",
-  "path": "routes/web.php"
-}
-```
-
-## Cara Tes Cepat
-
-Terminal 1:
+Dengan backend berjalan:
 
 ```bash
-npm run dev
+TEACHER_TOKEN=<token> node examples/smoke-test.js
 ```
 
-Terminal 2, jalankan client teacher dummy:
-
-```bash
-node examples/teacher-client.js
-```
-
-Terminal 3, jalankan client student dummy:
-
-```bash
-node examples/student-client.js
-```
+Skrip membuat data uji lalu menghapusnya kembali.

@@ -1,104 +1,36 @@
 # Live Coding Classroom VS Code Extension
 
-Custom VS Code extension untuk dosen. Extension ini membaca workspace VS Code, mengirim struktur folder, perubahan file, dan file aktif ke backend Node.js + WebSocket. Mahasiswa melihat hasilnya melalui web frontend secara view-only.
+Extension untuk dosen. Membagikan file tree, isi file, dan file yang sedang dibuka ke mahasiswa secara real-time, dan menyimpannya sebagai pertemuan di backend.
 
-## Fitur
+## Cara pakai
 
-- Start live coding session dari Command Palette.
-- Stop live coding session.
-- Copy student link.
-- Kirim initial project file tree.
-- Watch file create, update, dan delete.
-- Kirim active file saat dosen berpindah tab editor.
-- Abaikan file/folder sensitif dan berat secara default.
-- Batasi ukuran file yang dikirim.
+1. `Live Coding: Start Session` dari Command Palette.
+2. Pilih mata kuliah (atau buat baru).
+3. Pilih pertemuan (atau buat pertemuan baru).
+4. Kalau sudah ada pertemuan sebelumnya, pilih apakah ini **lanjutan** dari pertemuan tertentu atau **project baru**. Pertemuan dengan nama project yang sama diletakkan paling atas.
+5. Bagikan kode akses atau link ke mahasiswa. Keduanya bisa disalin dari notifikasi atau dengan mengklik indikator **Live** di status bar.
+6. `Live Coding: Stop Session` saat selesai. Kode tetap tersimpan dan bisa dibuka mahasiswa kapan saja.
 
-## Commands
-
-- `Live Coding: Start Session`
-- `Live Coding: Stop Session`
-- `Live Coding: Copy Student Link`
+Memilih pertemuan yang sudah selesai akan mengganti isinya dengan kondisi project sekarang (ada konfirmasi).
 
 ## Settings
 
-- `liveCoding.backendUrl`: URL backend WebSocket, contoh `ws://localhost:3000`.
-- `liveCoding.studentBaseUrl`: base URL web mahasiswa, contoh `http://localhost:5173/session`.
-- `liveCoding.teacherToken`: token dosen untuk backend.
-- `liveCoding.exclude`: daftar file/folder yang tidak dikirim.
-- `liveCoding.maxFileSizeKb`: batas ukuran file teks yang dikirim.
+| Setting | Keterangan |
+|---|---|
+| `liveCoding.backendUrl` | URL WebSocket backend, contoh `ws://localhost:3000` atau `wss://api.domainkamu.com` |
+| `liveCoding.teacherToken` | Harus sama dengan `TEACHER_TOKEN` di backend |
+| `liveCoding.exclude` | Pola **tambahan** yang tidak dibagikan (format .gitignore) |
+| `liveCoding.maxFileSizeKb` | Ukuran maksimal file teks, default 512 KB |
 
-## Cara Menjalankan Saat Development
+Selalu dikecualikan: `.git`, `node_modules`, `vendor`, `dist`, `build`, `out`, `coverage`, `.dart_tool`, `.gradle`, `ios/Pods`, `.flutter-plugins*`, `storage/logs`, `storage/framework`, `bootstrap/cache`, `public/build`, `.idea`, `.vscode`, `.env` dan `.env.*` (kecuali `.env.example`), file keystore/`key.properties`/`*.pem`, log, database SQLite, dan arsip. Gambar dan media hanya tampil namanya.
 
-```bash
-npm install
-npm run compile
-```
-
-Lalu buka project ini di VS Code dan tekan `F5`. VS Code akan membuka Extension Development Host.
-
-Di Extension Development Host:
-
-1. Buka project Laravel atau project lain.
-2. Jalankan command `Live Coding: Start Session`.
-3. Isi session ID.
-4. Extension akan connect ke backend WebSocket.
-
-## Cara Package ke VSIX
+## Development
 
 ```bash
 npm install
 npm run compile
-npx vsce package
+npx vsce package --allow-missing-repository --skip-license
+code --install-extension live-coding-classroom-0.1.0.vsix
 ```
 
-File `.vsix` hasil package bisa diinstall ke VS Code.
-
-## Event yang Dikirim ke Backend
-
-### Teacher Join
-
-```json
-{
-  "type": "teacher:join",
-  "sessionId": "session-abc123",
-  "projectName": "laravel-demo",
-  "teacherToken": "dev-secret-token"
-}
-```
-
-### Project Snapshot
-
-```json
-{
-  "type": "project:snapshot",
-  "sessionId": "session-abc123",
-  "tree": []
-}
-```
-
-### File Update
-
-```json
-{
-  "type": "file:update",
-  "sessionId": "session-abc123",
-  "path": "routes/web.php",
-  "content": "<?php ...",
-  "language": "php",
-  "updatedAt": "2026-05-05T10:15:00.000Z"
-}
-```
-
-### Active File
-
-```json
-{
-  "type": "teacher:active-file",
-  "sessionId": "session-abc123",
-  "path": "app/Http/Controllers/UserController.php"
-}
-```
-
-## Catatan Keamanan
-
-Secara default extension mengabaikan `.env`, `.git`, `node_modules`, `vendor`, file log, database lokal, media, archive, dan PDF. Untuk produksi, backend tetap harus validasi role teacher, token, session ID, dan path file.
+Atau buka folder ini di VS Code dan tekan `F5`.

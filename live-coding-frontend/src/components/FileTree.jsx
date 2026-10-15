@@ -1,6 +1,6 @@
 import FileNode from "./FileNode.jsx";
 
-export default function FileTree({ nodes, selectedFile, activeFile, changedFiles, onSelectFile }) {
+export default function FileTree({ nodes, ...rest }) {
   if (!nodes || nodes.length === 0) {
     return <div className="muted empty-tree">Belum ada struktur project.</div>;
   }
@@ -8,14 +8,7 @@ export default function FileTree({ nodes, selectedFile, activeFile, changedFiles
   return (
     <div className="file-tree">
       {nodes.map((node) => (
-        <FileNode
-          key={node.path}
-          node={node}
-          selectedFile={selectedFile}
-          activeFile={activeFile}
-          changedFiles={changedFiles}
-          onSelectFile={onSelectFile}
-        />
+        <FileNode key={node.path} node={node} {...rest} />
       ))}
     </div>
   );

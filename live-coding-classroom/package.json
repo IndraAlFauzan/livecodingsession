@@ -2,7 +2,7 @@
   "name": "live-coding-classroom",
   "displayName": "Live Coding Classroom",
   "description": "Share VS Code project file tree and file changes to students in real time.",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "publisher": "your-name",
   "engines": {
     "vscode": "^1.90.0"
@@ -38,48 +38,25 @@
         "liveCoding.backendUrl": {
           "type": "string",
           "default": "ws://localhost:3000",
-          "description": "WebSocket backend URL. Example: ws://localhost:3000 or wss://example.com/socket"
-        },
-        "liveCoding.studentBaseUrl": {
-          "type": "string",
-          "default": "http://localhost:5173/session",
-          "description": "Base URL used for student links. Example: https://livecode.example.com/session"
+          "description": "URL WebSocket backend. Contoh: ws://localhost:3000 atau wss://api.domainkamu.com"
         },
         "liveCoding.teacherToken": {
           "type": "string",
           "default": "dev-secret-token",
-          "description": "Teacher token sent to the backend when starting a session."
+          "description": "Teacher token, harus sama dengan TEACHER_TOKEN di backend."
         },
         "liveCoding.exclude": {
           "type": "array",
-          "default": [
-            ".git",
-            "node_modules",
-            "vendor",
-            "storage/logs",
-            "bootstrap/cache",
-            ".env",
-            ".env.*",
-            "*.log",
-            "*.sqlite",
-            "*.png",
-            "*.jpg",
-            "*.jpeg",
-            "*.gif",
-            "*.webp",
-            "*.mp4",
-            "*.mp3",
-            "*.pdf",
-            "*.zip",
-            "*.tar",
-            "*.gz"
-          ],
-          "description": "File and folder patterns excluded from sharing."
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Pola file/folder TAMBAHAN yang tidak dibagikan (format .gitignore). Daftar bawaan seperti node_modules, vendor, build, .dart_tool, .env selalu dikecualikan."
         },
         "liveCoding.maxFileSizeKb": {
           "type": "number",
           "default": 512,
-          "description": "Maximum text file size to send, in KB."
+          "description": "Ukuran maksimal file teks yang dibagikan, dalam KB."
         }
       }
     }

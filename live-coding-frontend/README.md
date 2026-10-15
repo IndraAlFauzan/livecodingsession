@@ -1,20 +1,21 @@
 # Live Coding Classroom Frontend
 
-Frontend mahasiswa untuk melihat project live coding dari dosen secara real-time.
+Web untuk mahasiswa (melihat kode dosen) dan halaman admin dosen. React + Vite + Monaco Editor.
 
-## Fitur
+## Halaman
 
-- Join session dari URL `/session/:sessionId`
-- Menampilkan struktur folder project
-- Expand/collapse folder
-- Klik file untuk melihat isi file
-- Code viewer read-only menggunakan Monaco Editor
-- Update isi file secara real-time via WebSocket
-- Indikator file aktif dosen
-- Mode `Follow Dosen`
-- Status koneksi backend
+| URL | Untuk | Isi |
+|---|---|---|
+| `/` | mahasiswa | Masukkan nama dan kode akses mata kuliah |
+| `/mk/:slug` | mahasiswa | Daftar pertemuan (Live/Selesai, label lanjutan) |
+| `/mk/:slug/p/:id` | mahasiswa | Viewer kode: real-time saat live, arsip read-only setelah selesai |
+| `/admin` | dosen | Kelola mata kuliah, kode akses, dan pertemuan (login dengan teacher token) |
 
-## Cara Menjalankan
+## Perlindungan kode
+
+Viewer memberi watermark nama mahasiswa, menyembunyikan kode saat shortcut screenshot terdeteksi, dan memblokir copy, klik kanan, serta print. Browser tidak bisa mencegah screenshot dari sistem operasi atau kamera; watermark membuat bocoran bisa dilacak.
+
+## Menjalankan
 
 ```bash
 npm install
@@ -22,35 +23,12 @@ cp .env.example .env
 npm run dev
 ```
 
-Buka browser:
+Buka `http://localhost:5174`. Backend harus berjalan di alamat yang diatur `VITE_WS_URL` (default `ws://localhost:3000`). Alamat REST API diturunkan dari situ, atau atur `VITE_API_URL` bila berbeda.
 
-```text
-http://localhost:5173/session/flutter-01
-```
-
-Pastikan backend berjalan di:
-
-```text
-ws://localhost:3000
-```
-
-Jika backend berbeda, ubah `.env`:
-
-```env
-VITE_WS_URL=ws://localhost:3000
-```
-
-## Urutan Menjalankan Sistem
-
-1. Jalankan backend Node.js.
-2. Jalankan frontend ini.
-3. Jalankan VS Code Extension di project dosen.
-4. Start session dari VS Code, misalnya `flutter-01`.
-5. Mahasiswa buka `http://localhost:5173/session/flutter-01`.
-
-## Build Production
+## Build production
 
 ```bash
 npm run build
-npm run preview
 ```
+
+Folder `dist/` disajikan sebagai static file. Server harus mengarahkan semua path ke `index.html` (misalnya `try_files $uri /index.html;` di nginx). Variabel `VITE_*` dibaca saat build, jadi set dulu sebelum menjalankan build.

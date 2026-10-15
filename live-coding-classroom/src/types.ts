@@ -7,6 +7,5 @@ export type FileNode = {
 
 export type SocketPayload = {
   type: string;
-  sessionId?: string;
   [key: string]: unknown;
 };

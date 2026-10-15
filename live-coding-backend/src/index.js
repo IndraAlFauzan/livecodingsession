@@ -55,8 +55,8 @@ function buildInit(meetingId) {
   };
 }
 
-function reject(ws, message) {
-  send(ws, { type: 'error', message });
+function reject(ws, message, reason = 'rejected') {
+  send(ws, { type: 'error', message, reason });
   ws.close(4003, 'Rejected');
 }
 
@@ -121,10 +121,10 @@ function handleStudentJoin(ws, message) {
   const course = db.getCourseByActiveCode(message.accessCode);
 
   if (!meeting || !course || course.id !== meeting.courseId) {
-    return reject(ws, 'Kode akses tidak valid untuk pertemuan ini.');
+    return reject(ws, 'Kode akses tidak valid untuk pertemuan ini.', 'invalid_code');
   }
   if (!meeting.visible || meeting.status === 'draft') {
-    return reject(ws, 'Pertemuan ini belum tersedia.');
+    return reject(ws, 'Pertemuan ini belum tersedia.', 'unavailable');
   }
 
   live.getRoom(meeting.id).students.add(ws);

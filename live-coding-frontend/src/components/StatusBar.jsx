@@ -1,10 +1,21 @@
-export default function StatusBar({ connectionStatus, sessionId, activeFile, studentCount }) {
+const CONNECTION_LABEL = {
+  connecting: "Menghubungkan",
+  connected: "Terhubung",
+  disconnected: "Terputus, mencoba lagi",
+};
+
+export default function StatusBar({ connectionStatus, studentName, activeFile, isLive }) {
   return (
     <footer className="status-bar">
-      <span className={`connection ${connectionStatus}`}>{connectionStatus}</span>
-      <span>Session: <strong>{sessionId}</strong></span>
-      <span>Dosen membuka: <strong>{activeFile || "-"}</strong></span>
-      {typeof studentCount === "number" && <span>Viewer: <strong>{studentCount}</strong></span>}
+      <span className={`connection ${connectionStatus}`}>{CONNECTION_LABEL[connectionStatus]}</span>
+      <span>
+        Masuk sebagai: <strong>{studentName}</strong>
+      </span>
+      {isLive && (
+        <span>
+          Dosen membuka: <strong>{activeFile || "-"}</strong>
+        </span>
+      )}
     </footer>
   );
 }

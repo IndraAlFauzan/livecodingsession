@@ -1,0 +1,103 @@
+{
+  "name": "live-coding-classroom",
+  "displayName": "Live Coding Classroom",
+  "description": "Share VS Code project file tree and file changes to students in real time.",
+  "version": "0.0.1",
+  "publisher": "your-name",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Education",
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:liveCoding.startSession",
+    "onCommand:liveCoding.stopSession",
+    "onCommand:liveCoding.copyStudentLink"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "liveCoding.startSession",
+        "title": "Live Coding: Start Session"
+      },
+      {
+        "command": "liveCoding.stopSession",
+        "title": "Live Coding: Stop Session"
+      },
+      {
+        "command": "liveCoding.copyStudentLink",
+        "title": "Live Coding: Copy Student Link"
+      }
+    ],
+    "configuration": {
+      "title": "Live Coding Classroom",
+      "properties": {
+        "liveCoding.backendUrl": {
+          "type": "string",
+          "default": "ws://localhost:3000",
+          "description": "WebSocket backend URL. Example: ws://localhost:3000 or wss://example.com/socket"
+        },
+        "liveCoding.studentBaseUrl": {
+          "type": "string",
+          "default": "http://localhost:5173/session",
+          "description": "Base URL used for student links. Example: https://livecode.example.com/session"
+        },
+        "liveCoding.teacherToken": {
+          "type": "string",
+          "default": "dev-secret-token",
+          "description": "Teacher token sent to the backend when starting a session."
+        },
+        "liveCoding.exclude": {
+          "type": "array",
+          "default": [
+            ".git",
+            "node_modules",
+            "vendor",
+            "storage/logs",
+            "bootstrap/cache",
+            ".env",
+            ".env.*",
+            "*.log",
+            "*.sqlite",
+            "*.png",
+            "*.jpg",
+            "*.jpeg",
+            "*.gif",
+            "*.webp",
+            "*.mp4",
+            "*.mp3",
+            "*.pdf",
+            "*.zip",
+            "*.tar",
+            "*.gz"
+          ],
+          "description": "File and folder patterns excluded from sharing."
+        },
+        "liveCoding.maxFileSizeKb": {
+          "type": "number",
+          "default": 512,
+          "description": "Maximum text file size to send, in KB."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package"
+  },
+  "dependencies": {
+    "ignore": "^5.3.2",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/vscode": "^1.90.0",
+    "@types/ws": "^8.5.12",
+    "typescript": "^5.5.0",
+    "@vscode/vsce": "^2.32.0"
+  }
+}

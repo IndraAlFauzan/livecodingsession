@@ -12,10 +12,6 @@ function broadcast(clients, payload) {
   }
 }
 
-function broadcastToStudents(session, payload) {
-  broadcast(session.students, payload);
-}
-
 function parseMessage(raw) {
   try {
     return JSON.parse(raw.toString());
@@ -27,6 +23,5 @@ function parseMessage(raw) {
 module.exports = {
   send,
   broadcast,
-  broadcastToStudents,
   parseMessage,
 };

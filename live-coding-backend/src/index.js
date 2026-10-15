@@ -1,235 +1,207 @@
-const express = require("express");
-const http = require("http");
-const cors = require("cors");
-const WebSocket = require("ws");
-const { nanoid } = require("nanoid");
+const express = require('express');
+const http = require('http');
+const cors = require('cors');
+const WebSocket = require('ws');
 
-const { config } = require("./config");
-const {
-  getSession,
-  listSessions,
-  touchSession,
-  removeStudent,
-  cleanupSessionIfEmpty,
-} = require("./sessions");
-const { isSafeRelativePath, isValidMessage } = require("./validation");
-const { send, broadcastToStudents, parseMessage } = require("./wsUtils");
+const { config } = require('./config');
+const db = require('./db');
+const live = require('./live');
+const routes = require('./routes');
+const { isTeacherToken } = require('./auth');
+const { isSafeRelativePath, isValidMessage } = require('./validation');
+const { send, parseMessage } = require('./wsUtils');
 
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+const wss = new WebSocket.Server({ server, maxPayload: 8 * 1024 * 1024 });
 
 app.use(cors());
 app.use(express.json());
 
-app.get("/health", (_req, res) => {
-  res.json({ status: "ok", service: "live-coding-backend" });
+app.get('/health', (_req, res) => {
+  res.json({ status: 'ok', service: 'live-coding-backend' });
 });
 
-app.get("/api/sessions", (_req, res) => {
-  res.json({ sessions: listSessions() });
+app.use('/api/admin', routes.admin);
+app.use('/api/student', routes.student);
+
+app.use((error, _req, res, _next) => {
+  console.error(error);
+  res.status(500).json({ error: 'Terjadi kesalahan di server.' });
 });
 
-app.post("/api/sessions", (_req, res) => {
-  const sessionId = nanoid(10);
-  const session = getSession(sessionId);
-  res.status(201).json({
-    sessionId,
-    studentUrl: `${config.publicBaseUrl}/session/${sessionId}`,
-    createdAt: session.createdAt,
-  });
-});
-
-function requireTeacher(ws, session) {
-  if (ws.role !== "teacher" || session.teacher !== ws) {
-    send(ws, {
-      type: "error",
-      message: "Only the teacher connection can send this event.",
-    });
-    return false;
-  }
-  return true;
+function studentUrl(course, meetingId) {
+  return `${config.publicBaseUrl}/mk/${course.slug}/p/${meetingId}`;
 }
 
-function handleTeacherJoin(ws, message, session) {
-  if (message.teacherToken !== config.teacherToken) {
-    send(ws, {
-      type: "error",
-      message: "Invalid teacher token.",
-    });
-    ws.close(1008, "Invalid teacher token");
-    return;
+function buildInit(meetingId) {
+  const meeting = db.getMeeting(meetingId);
+  const course = db.getCourseById(meeting.courseId);
+  return {
+    type: 'session:init',
+    course: { slug: course.slug, name: course.name },
+    meeting: {
+      id: meeting.id,
+      number: meeting.number,
+      title: meeting.title,
+      status: meeting.status,
+      projectName: meeting.projectName,
+      continuesFrom: meeting.continuesFrom,
+    },
+    tree: db.getMeetingTree(meetingId),
+    activeFile: meeting.activeFile,
+    changes: db.getChanges(meetingId),
+    hasTeacher: live.hasTeacher(meetingId),
+  };
+}
+
+function reject(ws, message) {
+  send(ws, { type: 'error', message });
+  ws.close(4003, 'Rejected');
+}
+
+function isActiveTeacher(ws) {
+  return ws.role === 'teacher' && ws.meetingId && live.getRoom(ws.meetingId).teacher === ws;
+}
+
+function releaseTeacher(ws) {
+  if (!isActiveTeacher(ws)) return;
+  const meetingId = ws.meetingId;
+  live.getRoom(meetingId).teacher = null;
+  db.finishMeeting(meetingId);
+  live.broadcastToStudents(meetingId, { type: 'teacher:disconnected' });
+}
+
+// ---------- handlers ----------
+
+function handleTeacherJoin(ws, message) {
+  if (!isTeacherToken(message.teacherToken)) return reject(ws, 'Token dosen tidak valid.');
+
+  const meeting = typeof message.meetingId === 'string' ? db.getMeeting(message.meetingId) : null;
+  if (!meeting) return reject(ws, 'Pertemuan tidak ditemukan.');
+
+  const room = live.getRoom(meeting.id);
+  if (room.teacher && room.teacher !== ws) {
+    return reject(ws, 'Pertemuan ini sedang dibuka dari VS Code lain.');
   }
 
-  if (session.teacher && session.teacher !== ws) {
-    send(ws, {
-      type: "error",
-      message: "A teacher is already connected to this session.",
-    });
-    ws.close(1008, "Teacher already connected");
-    return;
+  let continuesFrom = null;
+  if (message.continuesFrom) {
+    const parent = db.getMeeting(message.continuesFrom);
+    if (!parent || parent.courseId !== meeting.courseId || parent.id === meeting.id) {
+      return reject(ws, 'Pertemuan yang dilanjutkan tidak valid.');
+    }
+    continuesFrom = parent.id;
   }
 
-  session.teacher = ws;
-  session.projectName = message.projectName || session.projectName;
-  touchSession(session);
+  const projectName =
+    typeof message.projectName === 'string' && message.projectName.trim()
+      ? message.projectName.trim().slice(0, 200)
+      : 'Untitled Project';
 
-  ws.role = "teacher";
-  ws.sessionId = message.sessionId;
+  db.startMeeting(meeting.id, { projectName, continuesFrom });
+  room.teacher = ws;
+  ws.role = 'teacher';
+  ws.meetingId = meeting.id;
 
+  const course = db.getCourseById(meeting.courseId);
   send(ws, {
-    type: "teacher:joined",
-    sessionId: message.sessionId,
-    studentUrl: `${config.publicBaseUrl}/session/${message.sessionId}`,
+    type: 'teacher:joined',
+    meetingId: meeting.id,
+    studentUrl: studentUrl(course, meeting.id),
+    courseName: course.name,
+    accessCode: course.accessCode,
   });
 
-  broadcastToStudents(session, {
-    type: "teacher:connected",
-    projectName: session.projectName,
-  });
+  live.broadcastToStudents(meeting.id, buildInit(meeting.id));
 }
 
-function handleStudentJoin(ws, message, session) {
-  session.students.add(ws);
-  touchSession(session);
+function handleStudentJoin(ws, message) {
+  const meeting = typeof message.meetingId === 'string' ? db.getMeeting(message.meetingId) : null;
+  const course = db.getCourseByActiveCode(message.accessCode);
 
-  ws.role = "student";
-  ws.sessionId = message.sessionId;
-
-  send(ws, {
-    type: "session:init",
-    sessionId: message.sessionId,
-    projectName: session.projectName,
-    tree: session.tree,
-    activeFile: session.activeFile,
-    hasTeacher: Boolean(session.teacher),
-  });
-}
-
-function handleProjectSnapshot(ws, message, session) {
-  if (!requireTeacher(ws, session)) return;
-
-  session.tree = Array.isArray(message.tree) ? message.tree : [];
-  touchSession(session);
-
-  broadcastToStudents(session, {
-    type: "tree:update",
-    tree: session.tree,
-  });
-}
-
-function handleTreeUpdate(ws, message, session) {
-  if (!requireTeacher(ws, session)) return;
-
-  session.tree = Array.isArray(message.tree) ? message.tree : [];
-  touchSession(session);
-
-  broadcastToStudents(session, {
-    type: "tree:update",
-    tree: session.tree,
-  });
-}
-
-function handleFileUpsert(ws, message, session) {
-  if (!requireTeacher(ws, session)) return;
-
-  if (!isSafeRelativePath(message.path)) {
-    send(ws, { type: "error", message: "Unsafe file path rejected." });
-    return;
+  if (!meeting || !course || course.id !== meeting.courseId) {
+    return reject(ws, 'Kode akses tidak valid untuk pertemuan ini.');
+  }
+  if (!meeting.visible || meeting.status === 'draft') {
+    return reject(ws, 'Pertemuan ini belum tersedia.');
   }
 
-  if (typeof message.content !== "string") {
-    send(ws, { type: "error", message: "File content must be a string." });
-    return;
-  }
+  live.getRoom(meeting.id).students.add(ws);
+  ws.role = 'student';
+  ws.meetingId = meeting.id;
 
-  const contentBytes = Buffer.byteLength(message.content, "utf8");
-  if (contentBytes > config.maxFileSizeBytes) {
-    send(ws, {
-      type: "error",
-      message: `File too large. Max size is ${config.maxFileSizeBytes} bytes.`,
+  send(ws, buildInit(meeting.id));
+}
+
+function handleTree(ws, message) {
+  const tree = Array.isArray(message.tree) ? message.tree : [];
+  db.setMeetingTree(ws.meetingId, tree);
+  live.broadcastToStudents(ws.meetingId, { type: 'tree:update', tree });
+}
+
+function handleTextFile(ws, message) {
+  if (typeof message.content !== 'string') {
+    return send(ws, { type: 'error', message: 'Isi file harus berupa teks.', path: message.path });
+  }
+  if (Buffer.byteLength(message.content, 'utf8') > config.maxFileSizeBytes) {
+    return send(ws, {
+      type: 'error',
+      message: `File terlalu besar. Maksimal ${config.maxFileSizeBytes} byte.`,
       path: message.path,
     });
-    return;
   }
 
-  const updatedAt = message.updatedAt || new Date().toISOString();
-
-  session.files.set(message.path, {
+  const file = {
+    path: message.path,
+    kind: 'text',
     content: message.content,
-    language: message.language || "plaintext",
-    updatedAt,
-  });
-  touchSession(session);
+    language: typeof message.language === 'string' ? message.language : 'plaintext',
+    updatedAt: message.updatedAt || new Date().toISOString(),
+  };
+  const change = db.upsertFile(ws.meetingId, file);
 
-  broadcastToStudents(session, {
+  live.broadcastToStudents(ws.meetingId, {
     type: message.type,
+    path: file.path,
+    content: file.content,
+    language: file.language,
+    updatedAt: file.updatedAt,
+    change,
+  });
+}
+
+function handleAsset(ws, message) {
+  const updatedAt = message.updatedAt || new Date().toISOString();
+  const change = db.upsertFile(ws.meetingId, { path: message.path, kind: 'asset', updatedAt });
+  live.broadcastToStudents(ws.meetingId, {
+    type: 'asset:metadata',
     path: message.path,
-    content: message.content,
-    language: message.language || "plaintext",
+    assetType: 'binary',
     updatedAt,
+    change,
   });
 }
 
-function handleFileDelete(ws, message, session) {
-  if (!requireTeacher(ws, session)) return;
-
-  if (!isSafeRelativePath(message.path)) {
-    send(ws, { type: "error", message: "Unsafe file path rejected." });
-    return;
-  }
-
-  session.files.delete(message.path);
-  touchSession(session);
-
-  broadcastToStudents(session, {
-    type: "file:delete",
-    path: message.path,
-  });
+function handleFileDelete(ws, message) {
+  db.deleteFile(ws.meetingId, message.path);
+  live.broadcastToStudents(ws.meetingId, { type: 'file:delete', path: message.path });
 }
 
-function handleActiveFile(ws, message, session) {
-  if (!requireTeacher(ws, session)) return;
-
-  if (!isSafeRelativePath(message.path)) {
-    send(ws, { type: "error", message: "Unsafe file path rejected." });
-    return;
-  }
-
-  session.activeFile = message.path;
-  touchSession(session);
-
-  broadcastToStudents(session, {
-    type: "teacher:active-file",
-    path: message.path,
-  });
+function handleActiveFile(ws, message) {
+  db.setActiveFile(ws.meetingId, message.path);
+  live.broadcastToStudents(ws.meetingId, { type: 'teacher:active-file', path: message.path });
 }
 
-function handleFileRequest(ws, message, session) {
-  if (ws.role !== "student") {
-    send(ws, {
-      type: "error",
-      message: "Only students can request file content.",
-    });
-    return;
-  }
+function handleFileRequest(ws, message) {
+  const file = db.getFile(ws.meetingId, message.path);
+  if (!file) return send(ws, { type: 'file:not-found', path: message.path });
 
-  if (!isSafeRelativePath(message.path)) {
-    send(ws, { type: "error", message: "Unsafe file path rejected." });
-    return;
+  if (file.kind === 'asset') {
+    return send(ws, { type: 'asset:content', path: message.path, assetType: 'binary', updatedAt: file.updatedAt });
   }
-
-  const file = session.files.get(message.path);
-  if (!file) {
-    send(ws, {
-      type: "file:not-found",
-      path: message.path,
-    });
-    return;
-  }
-
   send(ws, {
-    type: "file:content",
+    type: 'file:content',
     path: message.path,
     content: file.content,
     language: file.language,
@@ -237,158 +209,77 @@ function handleFileRequest(ws, message, session) {
   });
 }
 
-wss.on("connection", (ws) => {
-  send(ws, {
-    type: "connected",
-    message: "Connected to Live Coding backend.",
-  });
+const teacherHandlers = {
+  'project:snapshot': handleTree,
+  'tree:update': handleTree,
+  'file:create': handleTextFile,
+  'file:update': handleTextFile,
+  'asset:metadata': handleAsset,
+  'file:delete': handleFileDelete,
+  'teacher:active-file': handleActiveFile,
+  'teacher:leave': (ws) => releaseTeacher(ws),
+  // Folder kosong muncul lewat tree:update yang dikirim extension setelahnya.
+  'folder:create': () => {},
+};
 
-  ws.on("message", (raw) => {
+const eventsWithPath = new Set([
+  'file:create',
+  'file:update',
+  'asset:metadata',
+  'file:delete',
+  'teacher:active-file',
+  'file:request',
+]);
+
+wss.on('connection', (ws) => {
+  send(ws, { type: 'connected', message: 'Connected to Live Coding backend.' });
+
+  ws.on('message', (raw) => {
     const message = parseMessage(raw);
-
     if (!isValidMessage(message)) {
-      send(ws, {
-        type: "error",
-        message: "Invalid JSON message.",
-      });
-      return;
+      return send(ws, { type: 'error', message: 'Pesan JSON tidak valid.' });
     }
 
-    const { type, sessionId } = message;
-    if (!sessionId || typeof sessionId !== "string") {
-      send(ws, {
-        type: "error",
-        message: "sessionId is required.",
-      });
-      return;
+    const { type } = message;
+
+    if (type === 'teacher:join') return handleTeacherJoin(ws, message);
+    if (type === 'student:join') return handleStudentJoin(ws, message);
+
+    if (!ws.meetingId) {
+      return send(ws, { type: 'error', message: 'Belum bergabung ke pertemuan.' });
     }
 
-    const session = getSession(sessionId);
+    if (eventsWithPath.has(type) && !isSafeRelativePath(message.path)) {
+      return send(ws, { type: 'error', message: 'Path file tidak aman, ditolak.' });
+    }
 
-    switch (type) {
-      case "teacher:join":
-        handleTeacherJoin(ws, message, session);
-        break;
+    if (type === 'file:request') return handleFileRequest(ws, message);
 
-      case "student:join":
-        handleStudentJoin(ws, message, session);
-        break;
+    const handler = teacherHandlers[type];
+    if (!handler) {
+      return send(ws, { type: 'error', message: `Event tidak dikenal: ${type}` });
+    }
+    if (!isActiveTeacher(ws)) {
+      return send(ws, { type: 'error', message: 'Hanya dosen yang boleh mengirim event ini.' });
+    }
 
-      case "project:snapshot":
-        handleProjectSnapshot(ws, message, session);
-        break;
-
-      case "tree:update":
-        handleTreeUpdate(ws, message, session);
-        break;
-
-      case "file:update":
-      case "file:create": {
-        if (ws.role !== "teacher") return;
-
-        session.files.set(message.path, {
-          type: "text",
-          content: message.content,
-          language: message.language,
-          updatedAt: message.updatedAt || new Date().toISOString(),
-        });
-
-        broadcastToStudents(session, {
-          type,
-          path: message.path,
-          content: message.content,
-          language: message.language,
-          updatedAt: message.updatedAt,
-        });
-
-        break;
-      }
-      case "file:delete":
-        handleFileDelete(ws, message, session);
-        break;
-
-      case "teacher:active-file":
-        handleActiveFile(ws, message, session);
-        break;
-      case "file:request": {
-        const file = session.files.get(message.path);
-
-        if (!file) {
-          send(ws, {
-            type: "file:not-found",
-            path: message.path,
-          });
-          return;
-        }
-
-        if (file.type === "asset") {
-          send(ws, {
-            type: "asset:content",
-            path: message.path,
-            assetType: file.assetType || "binary",
-            updatedAt: file.updatedAt,
-          });
-
-          return;
-        }
-
-        send(ws, {
-          type: "file:content",
-          path: message.path,
-          content: file.content,
-          language: file.language,
-          updatedAt: file.updatedAt,
-        });
-
-        break;
-      }
-      case "asset:metadata": {
-        if (ws.role !== "teacher") return;
-
-        session.files.set(message.path, {
-          type: "asset",
-          assetType: message.assetType || "binary",
-          updatedAt: message.updatedAt || new Date().toISOString(),
-        });
-
-        broadcastToStudents(session, {
-          type: "asset:metadata",
-          path: message.path,
-          assetType: message.assetType || "binary",
-          updatedAt: message.updatedAt,
-        });
-
-        break;
-      }
-
-      default:
-        send(ws, {
-          type: "error",
-          message: `Unknown event type: ${type}`,
-        });
+    try {
+      handler(ws, message);
+    } catch (error) {
+      console.error(`Gagal memproses ${type}:`, error);
+      send(ws, { type: 'error', message: `Gagal memproses ${type}.` });
     }
   });
 
-  ws.on("close", () => {
-    if (!ws.sessionId) return;
-
-    const session = getSession(ws.sessionId);
-
-    if (ws.role === "teacher" && session.teacher === ws) {
-      session.teacher = null;
-      broadcastToStudents(session, {
-        type: "teacher:disconnected",
-      });
-    }
-
-    if (ws.role === "student") {
-      removeStudent(session, ws);
-    }
-
-    cleanupSessionIfEmpty(ws.sessionId);
+  ws.on('close', () => {
+    if (!ws.meetingId) return;
+    releaseTeacher(ws);
+    if (ws.role === 'student') live.getRoom(ws.meetingId).students.delete(ws);
+    live.releaseRoom(ws.meetingId);
   });
 });
 
 server.listen(config.port, () => {
   console.log(`Live Coding backend running on http://localhost:${config.port}`);
+  console.log(`Database: ${config.dbPath}`);
 });

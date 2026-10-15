@@ -2,7 +2,7 @@
   "name": "live-coding-classroom",
   "displayName": "Live Coding Classroom",
   "description": "Share VS Code project file tree and file changes to students in real time.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "your-name",
   "engines": {
     "vscode": "^1.90.0"
@@ -12,9 +12,7 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:liveCoding.startSession",
-    "onCommand:liveCoding.stopSession",
-    "onCommand:liveCoding.copyStudentLink"
+    "onStartupFinished"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -30,6 +28,16 @@
       {
         "command": "liveCoding.copyStudentLink",
         "title": "Live Coding: Copy Student Link"
+      },
+      {
+        "command": "liveCoding.hideFromStudents",
+        "title": "Sembunyikan dari mahasiswa",
+        "category": "Live Coding"
+      },
+      {
+        "command": "liveCoding.showToStudents",
+        "title": "Tampilkan ke mahasiswa",
+        "category": "Live Coding"
       }
     ],
     "configuration": {
@@ -59,6 +67,42 @@
           "description": "Ukuran maksimal file teks yang dibagikan, dalam KB."
         }
       }
+    },
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "liveCoding.hideFromStudents",
+          "when": "resourceScheme == file && !(resourcePath in liveCoding.hiddenPaths)",
+          "group": "liveCoding@1"
+        },
+        {
+          "command": "liveCoding.showToStudents",
+          "when": "resourceScheme == file && resourcePath in liveCoding.hiddenPaths",
+          "group": "liveCoding@2"
+        }
+      ],
+      "editor/title/context": [
+        {
+          "command": "liveCoding.hideFromStudents",
+          "when": "resourceScheme == file && !(resourcePath in liveCoding.hiddenPaths)",
+          "group": "liveCoding@1"
+        },
+        {
+          "command": "liveCoding.showToStudents",
+          "when": "resourceScheme == file && resourcePath in liveCoding.hiddenPaths",
+          "group": "liveCoding@2"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "liveCoding.hideFromStudents",
+          "when": "resourceScheme == file"
+        },
+        {
+          "command": "liveCoding.showToStudents",
+          "when": "resourceScheme == file"
+        }
+      ]
     }
   },
   "scripts": {

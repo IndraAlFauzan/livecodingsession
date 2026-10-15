@@ -13,6 +13,15 @@ Extension untuk dosen. Membagikan file tree, isi file, dan file yang sedang dibu
 
 Memilih pertemuan yang sudah selesai akan mengganti isinya dengan kondisi project sekarang (ada konfirmasi).
 
+## Menyembunyikan file
+
+Klik kanan file atau folder di Explorer (atau di tab editor), lalu pilih **Sembunyikan dari mahasiswa**. Untuk membukanya lagi, pilih **Tampilkan ke mahasiswa**.
+
+- Daftarnya tersimpan di `.livecodingignore` di root project (format .gitignore) dan berlaku di semua pertemuan berikutnya. File ini bisa juga diedit manual.
+- File tersembunyi diberi tanda `⊘` di Explorer.
+- Saat live, perubahan langsung berlaku: file hilang dari tree mahasiswa dan dihapus dari server, lalu dikirim lagi saat ditampilkan.
+- `.livecodingignore` sendiri tidak pernah dikirim ke mahasiswa.
+
 ## Settings
 
 | Setting | Keterangan |

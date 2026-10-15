@@ -6,6 +6,7 @@ import { connectSocket, disconnectSocket, sendMessage, isConnected } from "./soc
 import { canShareFile, normalizeRelativePath, readTextFile, isIgnoredPath, isAssetFile } from "./fileUtils";
 import { detectLanguage } from "./languageDetector";
 import { debounceByKey, clearDebounces } from "./debounce";
+import { registerHiddenFiles } from "./hiddenFiles";
 import { SocketPayload } from "./types";
 
 type LiveTarget = {
@@ -34,6 +35,8 @@ let stopping = false;
 let watcher: vscode.FileSystemWatcher | null = null;
 let disposables: vscode.Disposable[] = [];
 let statusItem: vscode.StatusBarItem;
+// Path yang sudah dikirim ke backend pada sesi ini.
+const sentPaths = new Set<string>();
 
 export function activate(context: vscode.ExtensionContext) {
   statusItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
@@ -46,6 +49,8 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("liveCoding.copyStudentLink", copyStudentLink),
     vscode.commands.registerCommand("liveCoding.menu", showLiveMenu),
   );
+
+  registerHiddenFiles(context, () => debounceByKey("visibility", resyncVisibility, 200));
 }
 
 // ---------- memilih target ----------
@@ -219,6 +224,7 @@ function startLive(workspace: vscode.WorkspaceFolder, target: LiveTarget) {
   const config = getConfig();
   live = { target, workspace, joined: false, rejected: false, studentUrl: null, accessCode: null };
   stopping = false;
+  sentPaths.clear();
 
   statusItem.text = "$(sync~spin) Live Coding: menghubungkan...";
   statusItem.tooltip = target.label;
@@ -310,6 +316,7 @@ function teardown() {
   disposables = [];
   clearDebounces();
   disconnectSocket();
+  sentPaths.clear();
   live = null;
   statusItem?.hide();
 }
@@ -347,7 +354,7 @@ async function sendProjectSnapshot() {
   sendMessage({ type: "project:snapshot", tree });
 }
 
-async function sendInitialFiles() {
+async function sendInitialFiles({ onlyMissing = false } = {}) {
   if (!live) return;
 
   async function walk(dirUri: vscode.Uri): Promise<void> {
@@ -360,14 +367,36 @@ async function sendInitialFiles() {
 
     for (const [name, type] of entries) {
       const childUri = vscode.Uri.joinPath(dirUri, name);
-      if (isIgnoredPath(normalizeRelativePath(childUri))) continue;
+      const relativePath = normalizeRelativePath(childUri);
+      if (isIgnoredPath(relativePath)) continue;
 
       if (type === vscode.FileType.Directory) await walk(childUri);
-      else if (type === vscode.FileType.File) await sendFile(childUri, "file:create");
+      else if (type === vscode.FileType.File && !(onlyMissing && sentPaths.has(relativePath))) {
+        await sendFile(childUri, "file:create");
+      }
     }
   }
 
   await walk(live.workspace.uri);
+}
+
+function sendDelete(relativePath: string) {
+  for (const sent of [...sentPaths]) {
+    if (sent === relativePath || sent.startsWith(`${relativePath}/`)) {
+      sendMessage({ type: "file:delete", path: sent });
+      sentPaths.delete(sent);
+    }
+  }
+}
+
+// Dipanggil saat .livecodingignore atau liveCoding.exclude berubah.
+async function resyncVisibility() {
+  if (!live?.joined) return;
+  for (const sent of [...sentPaths]) {
+    if (isIgnoredPath(sent)) sendDelete(sent);
+  }
+  await sendInitialFiles({ onlyMissing: true });
+  await sendProjectSnapshot();
 }
 
 async function sendFile(uri: vscode.Uri, type: "file:create" | "file:update") {
@@ -378,19 +407,22 @@ async function sendFile(uri: vscode.Uri, type: "file:create" | "file:update") {
     if (isIgnoredPath(relativePath)) return;
 
     if (isAssetFile(relativePath)) {
-      sendMessage({ type: "asset:metadata", path: relativePath, updatedAt: new Date().toISOString() });
+      if (sendMessage({ type: "asset:metadata", path: relativePath, updatedAt: new Date().toISOString() })) {
+        sentPaths.add(relativePath);
+      }
       return;
     }
 
     if (!(await canShareFile(uri))) return;
 
-    sendMessage({
+    const sent = sendMessage({
       type,
       path: relativePath,
       content: await readTextFile(uri),
       language: detectLanguage(relativePath),
       updatedAt: new Date().toISOString(),
     });
+    if (sent) sentPaths.add(relativePath);
   } catch (error) {
     console.error("[Live Coding Classroom] Gagal mengirim file:", error);
   }
@@ -423,8 +455,8 @@ function registerWatchers() {
 
   watcher.onDidDelete((uri) => {
     const relativePath = normalizeRelativePath(uri);
-    if (isIgnoredPath(relativePath)) return;
-    sendMessage({ type: "file:delete", path: relativePath });
+    // Folder yang dihapus: hapus juga semua file di dalamnya yang sudah terkirim.
+    sendDelete(relativePath);
     debounceByKey("tree:update", sendProjectSnapshot, 300);
   });
 }

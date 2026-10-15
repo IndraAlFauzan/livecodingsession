@@ -1,5 +1,9 @@
+import * as fs from "fs";
+import * as path from "path";
 import * as vscode from "vscode";
-import ignore from "ignore";
+import ignore, { Ignore } from "ignore";
+
+export const IGNORE_FILE = ".livecodingignore";
 
 // Selalu dipakai; setting liveCoding.exclude hanya menambah pola.
 const BUILT_IN_EXCLUDE = [
@@ -30,6 +34,8 @@ const BUILT_IN_EXCLUDE = [
   ".idea",
   ".vscode",
   ".DS_Store",
+  // berisi nama file yang disembunyikan dosen
+  IGNORE_FILE,
   // rahasia & data lokal
   ".env",
   ".env.*",
@@ -64,6 +70,43 @@ export function getHttpBaseUrl(): string {
   return getConfig().backendUrl.replace(/^ws/, "http");
 }
 
-export function createIgnoreMatcher() {
-  return ignore().add(getConfig().exclude);
+let cachedMatcher: Ignore | null = null;
+let cachedManualMatcher: Ignore | null = null;
+
+export function workspaceRoot(): vscode.WorkspaceFolder | undefined {
+  return vscode.workspace.workspaceFolders?.[0];
+}
+
+export function ignoreFilePath(): string | undefined {
+  const root = workspaceRoot();
+  return root ? path.join(root.uri.fsPath, IGNORE_FILE) : undefined;
+}
+
+export function readManualRules(): string[] {
+  const file = ignoreFilePath();
+  if (!file) return [];
+  try {
+    return fs
+      .readFileSync(file, "utf8")
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith("#"));
+  } catch {
+    return [];
+  }
+}
+
+export function invalidateIgnoreMatcher() {
+  cachedMatcher = null;
+  cachedManualMatcher = null;
+}
+
+export function createIgnoreMatcher(): Ignore {
+  cachedMatcher ??= ignore().add(getConfig().exclude).add(readManualRules());
+  return cachedMatcher;
+}
+
+export function createManualMatcher(): Ignore {
+  cachedManualMatcher ??= ignore().add(readManualRules());
+  return cachedManualMatcher;
 }

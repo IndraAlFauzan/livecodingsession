@@ -24,6 +24,7 @@ Dosen cukup mengetik di VS Code seperti biasa. Mahasiswa membuka browser, memasu
 
 **Untuk dosen**
 - Live coding langsung dari VS Code: file tree, isi file, dan file yang sedang dibuka terkirim otomatis setiap kali disimpan.
+- Blok (seleksi) kode di VS Code ikut tersorot di layar mahasiswa, termasuk multi-cursor.
 - Banyak mata kuliah, masing-masing dengan kode akses sendiri yang bisa disalin, dinonaktifkan, atau dibuat ulang.
 - Pertemuan per mata kuliah dengan status **Belum dimulai**, **Live**, atau **Selesai**, dan bisa ditampilkan atau disembunyikan dari mahasiswa.
 - **Lanjutan project**: pertemuan bisa ditandai sebagai lanjutan pertemuan sebelumnya. Mahasiswa melihat label "Lanjutan dari Pertemuan X" dan badge **Baru**/**Diubah** per file.
@@ -35,7 +36,7 @@ Dosen cukup mengetik di VS Code seperti biasa. Mahasiswa membuka browser, memasu
 - Masuk dengan nama dan kode akses, tanpa membuat akun.
 - Hanya melihat mata kuliah yang kodenya dimiliki.
 - Viewer kode read-only (Monaco Editor, sama seperti VS Code) dengan syntax highlighting.
-- Mode Follow Dosen: viewer otomatis membuka file yang sedang dibuka dosen.
+- Mode Follow Dosen: viewer otomatis membuka file yang sedang dibuka dosen dan scroll ke bagian yang sedang disorot dosen.
 - Arsip setiap pertemuan tetap bisa dibuka setelah kelas selesai.
 - Tersambung ulang otomatis bila koneksi terputus.
 
@@ -118,7 +119,7 @@ cd live-coding-classroom
 npm install
 npm run compile
 npx vsce package --allow-missing-repository --skip-license
-code --install-extension live-coding-classroom-0.2.0.vsix
+code --install-extension live-coding-classroom-0.3.0.vsix
 ```
 
 Setelah install, jalankan **Developer: Reload Window** di VS Code.
@@ -146,7 +147,7 @@ Mata kuliah dan pertemuan juga bisa dibuat langsung dari VS Code saat memulai se
 3. Pilih mata kuliah, lalu pilih pertemuan atau buat pertemuan baru.
 4. Kalau sudah ada pertemuan sebelumnya, pilih **Lanjutan dari Pertemuan X** bila melanjutkan project yang sama, atau **Project baru**. Pertemuan dengan nama project yang sama ditaruh paling atas.
 5. Notifikasi menampilkan kode akses dan link mahasiswa. Indikator **Live** di status bar bisa diklik untuk menyalin link, menyalin kode, atau menghentikan sesi.
-6. Mengajar seperti biasa. Setiap kali file disimpan, mahasiswa melihat perubahannya.
+6. Mengajar seperti biasa. Setiap kali file disimpan, mahasiswa melihat perubahannya. Blok kode yang ingin dijelaskan, dan bagian itu ikut tersorot kuning di layar mahasiswa. Sorotan mengikuti posisi di file versi tersimpan, jadi simpan dulu bila ada perubahan yang menggeser baris.
 7. Selesai kelas, jalankan **Live Coding: Stop Session**. Status pertemuan berubah jadi Selesai dan kodenya tersimpan.
 
 Memilih pertemuan yang sudah selesai akan mengganti isinya dengan kondisi project sekarang (ada konfirmasi sebelumnya).

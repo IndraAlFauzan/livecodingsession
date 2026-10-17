@@ -3,7 +3,7 @@ const { send, broadcast } = require('./wsUtils');
 const rooms = new Map();
 
 function getRoom(meetingId) {
-  if (!rooms.has(meetingId)) rooms.set(meetingId, { teacher: null, students: new Set() });
+  if (!rooms.has(meetingId)) rooms.set(meetingId, { teacher: null, students: new Set(), selection: null });
   return rooms.get(meetingId);
 }
 
@@ -14,6 +14,10 @@ function releaseRoom(meetingId) {
 
 function hasTeacher(meetingId) {
   return Boolean(rooms.get(meetingId)?.teacher);
+}
+
+function getSelection(meetingId) {
+  return rooms.get(meetingId)?.selection ?? null;
 }
 
 function broadcastToStudents(meetingId, payload) {
@@ -30,4 +34,4 @@ function kickStudents(meetingId, message) {
   }
 }
 
-module.exports = { getRoom, releaseRoom, hasTeacher, broadcastToStudents, kickStudents };
+module.exports = { getRoom, releaseRoom, hasTeacher, getSelection, broadcastToStudents, kickStudents };

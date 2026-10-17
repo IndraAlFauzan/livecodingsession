@@ -2,7 +2,7 @@
   "name": "live-coding-classroom",
   "displayName": "Live Coding Classroom",
   "description": "Share VS Code project file tree and file changes to students in real time.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "your-name",
   "engines": {
     "vscode": "^1.90.0"

@@ -52,6 +52,7 @@ function buildInit(meetingId) {
     activeFile: meeting.activeFile,
     changes: db.getChanges(meetingId),
     hasTeacher: live.hasTeacher(meetingId),
+    selection: live.getSelection(meetingId),
   };
 }
 
@@ -67,7 +68,9 @@ function isActiveTeacher(ws) {
 function releaseTeacher(ws) {
   if (!isActiveTeacher(ws)) return;
   const meetingId = ws.meetingId;
-  live.getRoom(meetingId).teacher = null;
+  const room = live.getRoom(meetingId);
+  room.teacher = null;
+  room.selection = null;
   db.finishMeeting(meetingId);
   live.broadcastToStudents(meetingId, { type: 'teacher:disconnected' });
 }
@@ -193,6 +196,23 @@ function handleActiveFile(ws, message) {
   live.broadcastToStudents(ws.meetingId, { type: 'teacher:active-file', path: message.path });
 }
 
+const MAX_SELECTIONS = 20;
+
+function isLineOrColumn(value) {
+  return Number.isInteger(value) && value >= 1 && value <= 1_000_000;
+}
+
+// Seleksi hanya disimpan di memori: tidak relevan untuk arsip pertemuan.
+function handleSelection(ws, message) {
+  const selections = (Array.isArray(message.selections) ? message.selections : [])
+    .slice(0, MAX_SELECTIONS)
+    .filter((s) => s && [s.startLine, s.startColumn, s.endLine, s.endColumn].every(isLineOrColumn))
+    .map(({ startLine, startColumn, endLine, endColumn }) => ({ startLine, startColumn, endLine, endColumn }));
+
+  live.getRoom(ws.meetingId).selection = selections.length ? { path: message.path, selections } : null;
+  live.broadcastToStudents(ws.meetingId, { type: 'teacher:selection', path: message.path, selections });
+}
+
 function handleFileRequest(ws, message) {
   const file = db.getFile(ws.meetingId, message.path);
   if (!file) return send(ws, { type: 'file:not-found', path: message.path });
@@ -217,6 +237,7 @@ const teacherHandlers = {
   'asset:metadata': handleAsset,
   'file:delete': handleFileDelete,
   'teacher:active-file': handleActiveFile,
+  'teacher:selection': handleSelection,
   'teacher:leave': (ws) => releaseTeacher(ws),
   // Folder kosong muncul lewat tree:update yang dikirim extension setelahnya.
   'folder:create': () => {},
@@ -228,6 +249,7 @@ const eventsWithPath = new Set([
   'asset:metadata',
   'file:delete',
   'teacher:active-file',
+  'teacher:selection',
   'file:request',
 ]);
 

@@ -45,6 +45,7 @@ function MeetingViewer({ slug, meetingId, access, onAccessRevoked }) {
   const [changes, setChanges] = useState({});
   const [selectedFile, setSelectedFile] = useState(null);
   const [activeFile, setActiveFile] = useState(null);
+  const [teacherSelection, setTeacherSelection] = useState(null);
   const [followTeacher, setFollowTeacher] = useState(true);
   const [flashFiles, setFlashFiles] = useState(() => new Set());
   const [notice, setNotice] = useState(null);
@@ -99,6 +100,7 @@ function MeetingViewer({ slug, meetingId, access, onAccessRevoked }) {
           setTree(sortTree(message.tree || []));
           setChanges(message.changes || {});
           setActiveFile(message.activeFile || null);
+          setTeacherSelection(message.selection || null);
           setFiles({});
           setNotice(null);
 
@@ -156,8 +158,13 @@ function MeetingViewer({ slug, meetingId, access, onAccessRevoked }) {
           }
           break;
 
+        case "teacher:selection":
+          setTeacherSelection(message.selections?.length ? { path: message.path, selections: message.selections } : null);
+          break;
+
         case "teacher:disconnected":
           setHasTeacher(false);
+          setTeacherSelection(null);
           setMeeting((prev) => prev && { ...prev, status: "finished" });
           setNotice("Sesi live telah selesai. Kode terakhir tetap bisa kamu lihat.");
           break;
@@ -236,6 +243,7 @@ function MeetingViewer({ slug, meetingId, access, onAccessRevoked }) {
   const courseName = course?.name || access.courseName;
   const watermark = `${access.studentName} · ${courseName} · ${new Date().toLocaleDateString("id-ID")}`;
   const changeCount = Object.keys(changes).length;
+  const highlights = isLive && teacherSelection?.path === selectedFile ? teacherSelection.selections : null;
 
   return (
     <div className="app-shell">
@@ -309,7 +317,12 @@ function MeetingViewer({ slug, meetingId, access, onAccessRevoked }) {
           </aside>
 
           <section className="editor-panel">
-            <CodeViewer path={selectedFile} file={selectedFile ? files[selectedFile] : null} />
+            <CodeViewer
+              path={selectedFile}
+              file={selectedFile ? files[selectedFile] : null}
+              highlights={highlights}
+              followHighlights={followTeacher}
+            />
           </section>
         </main>
       </ProtectedArea>

@@ -317,6 +317,7 @@ function teardown() {
   clearDebounces();
   disconnectSocket();
   sentPaths.clear();
+  lastSelectionPath = null;
   live = null;
   statusItem?.hide();
 }
@@ -462,21 +463,69 @@ function registerWatchers() {
 }
 
 function registerActiveEditorListener() {
-  disposables.push(vscode.window.onDidChangeActiveTextEditor(() => sendCurrentActiveFile()));
+  disposables.push(
+    vscode.window.onDidChangeActiveTextEditor(() => sendCurrentActiveFile()),
+    vscode.window.onDidChangeTextEditorSelection((event) => {
+      if (event.textEditor !== vscode.window.activeTextEditor) return;
+      debounceByKey("selection", () => sendSelection(event.textEditor), 120);
+    }),
+  );
+}
+
+// Path relatif bila file boleh dibagikan, null bila di luar project atau disembunyikan.
+function sharedPath(uri: vscode.Uri): string | null {
+  if (!live || uri.scheme !== "file") return null;
+  if (vscode.workspace.getWorkspaceFolder(uri)?.uri.toString() !== live.workspace.uri.toString()) return null;
+  const relativePath = normalizeRelativePath(uri);
+  return isIgnoredPath(relativePath) ? null : relativePath;
 }
 
 async function sendCurrentActiveFile() {
   const editor = vscode.window.activeTextEditor;
-  if (!live || !editor || editor.document.uri.scheme !== "file") return;
-  if (vscode.workspace.getWorkspaceFolder(editor.document.uri)?.uri.toString() !== live.workspace.uri.toString()) {
+  if (!live || !editor) return;
+
+  const relativePath = sharedPath(editor.document.uri);
+  if (!relativePath) {
+    clearSelection();
     return;
   }
 
-  const relativePath = normalizeRelativePath(editor.document.uri);
-  if (isIgnoredPath(relativePath)) return;
-
   sendMessage({ type: "teacher:active-file", path: relativePath });
   await sendFile(editor.document.uri, "file:update");
+  sendSelection(editor);
+}
+
+const MAX_SELECTIONS = 20;
+let lastSelectionPath: string | null = null;
+
+function sendSelection(editor: vscode.TextEditor) {
+  if (!live?.joined) return;
+  const relativePath = sharedPath(editor.document.uri);
+  if (!relativePath) {
+    clearSelection();
+    return;
+  }
+
+  // VS Code memakai baris/kolom mulai 0, Monaco di viewer mulai 1.
+  const selections = editor.selections
+    .filter((selection) => !selection.isEmpty)
+    .slice(0, MAX_SELECTIONS)
+    .map((selection) => ({
+      startLine: selection.start.line + 1,
+      startColumn: selection.start.character + 1,
+      endLine: selection.end.line + 1,
+      endColumn: selection.end.character + 1,
+    }));
+
+  if (lastSelectionPath && lastSelectionPath !== relativePath) clearSelection();
+  sendMessage({ type: "teacher:selection", path: relativePath, selections });
+  lastSelectionPath = selections.length ? relativePath : null;
+}
+
+function clearSelection() {
+  if (!lastSelectionPath) return;
+  sendMessage({ type: "teacher:selection", path: lastSelectionPath, selections: [] });
+  lastSelectionPath = null;
 }
 
 export function deactivate() {

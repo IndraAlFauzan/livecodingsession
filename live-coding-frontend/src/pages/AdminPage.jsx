@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import PageShell from "../components/PageShell.jsx";
 import StatusStamp from "../components/StatusStamp.jsx";
-import { adminApi, chapterNumber, formatDateTime } from "../lib/api.js";
+import { adminApi, formatDateTime } from "../lib/api.js";
 import { storage } from "../lib/storage.js";
 
 const MEETING_REFRESH_MS = 10000;
@@ -380,36 +380,23 @@ function CourseDetail({ api, course, onError, onCourseChanged }) {
         )}
 
         {meetings?.length > 0 && (
-          <div className="table-wrap">
-            <table className="meeting-table">
-              <thead>
-                <tr>
-                  <th scope="col">No</th>
-                  <th scope="col">Pertemuan</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Terlihat mahasiswa</th>
-                  <th scope="col">
-                    <span className="visually-hidden">Aksi</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {meetings.map((meeting) => (
-                  <MeetingRow
-                    key={meeting.id}
-                    meeting={meeting}
-                    confirming={confirm === `delete:${meeting.id}`}
-                    onRename={(title) => run(() => api.updateMeeting(meeting.id, { title }))}
-                    onToggleVisible={() => run(() => api.updateMeeting(meeting.id, { visible: !meeting.visible }))}
-                    onAskDelete={() => setConfirm(`delete:${meeting.id}`)}
-                    onCancelDelete={() => setConfirm(null)}
-                    onDelete={() => run(() => api.deleteMeeting(meeting.id), { reloadCourses: true })}
-                    onOpen={() => openMeeting(meeting)}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ul className="admin-meetings" aria-label="Pertemuan, terbaru di atas">
+            {[...meetings]
+              .sort((a, b) => b.number - a.number)
+              .map((meeting) => (
+                <MeetingRow
+                  key={meeting.id}
+                  meeting={meeting}
+                  confirming={confirm === `delete:${meeting.id}`}
+                  onRename={(title) => run(() => api.updateMeeting(meeting.id, { title }))}
+                  onToggleVisible={() => run(() => api.updateMeeting(meeting.id, { visible: !meeting.visible }))}
+                  onAskDelete={() => setConfirm(`delete:${meeting.id}`)}
+                  onCancelDelete={() => setConfirm(null)}
+                  onDelete={() => run(() => api.deleteMeeting(meeting.id), { reloadCourses: true })}
+                  onOpen={() => openMeeting(meeting)}
+                />
+              ))}
+          </ul>
         )}
       </section>
 
@@ -447,11 +434,18 @@ function MeetingRow({ meeting, confirming, onRename, onToggleVisible, onAskDelet
   const status = meeting.status === "live" && !meeting.teacherConnected ? "finished" : meeting.status;
   const openDisabledReason =
     meeting.status === "draft" ? "Belum pernah dimulai" : !meeting.visible ? "Tampilkan dulu untuk membuka" : undefined;
+  const meta = [
+    meeting.startedAt && formatDateTime(meeting.startedAt),
+    meeting.continuesFrom && `lanjutan pertemuan ${meeting.continuesFrom.number}`,
+  ].filter(Boolean);
 
   return (
-    <tr className={meeting.visible ? undefined : "row-hidden"}>
-      <td className="cell-number">{chapterNumber(meeting.number)}</td>
-      <td className="cell-title">
+    <li className={meeting.visible ? "admin-meeting" : "admin-meeting is-hidden"}>
+      <div className="admin-meeting-main">
+        <span className="meeting-label">
+          Pertemuan {meeting.number}
+          {!meeting.visible && " (disembunyikan)"}
+        </span>
         {editing === null ? (
           <button className="title-button" onClick={() => setEditing(meeting.title)}>
             {meeting.title || <span className="placeholder-text">Tanpa judul</span>}
@@ -483,23 +477,18 @@ function MeetingRow({ meeting, confirming, onRename, onToggleVisible, onAskDelet
             </button>
           </form>
         )}
-        <div className="row-meta">
-          {meeting.continuesFrom && <span>Lanjutan dari pertemuan {meeting.continuesFrom.number}</span>}
-          {meeting.startedAt && <span>{formatDateTime(meeting.startedAt)}</span>}
-        </div>
-      </td>
-      <td>
+        {meta.length > 0 && <span className="meeting-meta">{meta.join(", ")}</span>}
+      </div>
+
+      <div className="admin-meeting-controls">
         <StatusStamp status={status} />
-      </td>
-      <td>
         <label className="check">
           <input type="checkbox" checked={meeting.visible} onChange={onToggleVisible} />
-          <span>{meeting.visible ? "Terlihat" : "Disembunyikan"}</span>
+          <span>Terlihat mahasiswa</span>
         </label>
-      </td>
-      <td className="cell-actions">
         {confirming ? (
           <div className="confirm" role="group" aria-label={`Konfirmasi hapus pertemuan ${meeting.number}`}>
+            <span className="confirm-text">Hapus permanen?</span>
             <button className="btn btn-danger btn-small" onClick={onDelete}>
               Ya, hapus
             </button>
@@ -521,7 +510,7 @@ function MeetingRow({ meeting, confirming, onRename, onToggleVisible, onAskDelet
             </button>
           </div>
         )}
-      </td>
-    </tr>
+      </div>
+    </li>
   );
 }

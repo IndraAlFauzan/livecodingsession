@@ -6,6 +6,7 @@ import FileTree from "../components/FileTree.jsx";
 import ProtectedArea from "../components/ProtectedArea.jsx";
 import StatusBar from "../components/StatusBar.jsx";
 import { WS_URL } from "../config.js";
+import Breadcrumb from "../components/Breadcrumb.jsx";
 import PageShell from "../components/PageShell.jsx";
 import StatusStamp from "../components/StatusStamp.jsx";
 import { getCourseAccess, storage } from "../lib/storage.js";
@@ -250,13 +251,15 @@ function MeetingViewer({ slug, meetingId, access, onAccessRevoked }) {
     <div className="app-shell">
       <header className="topbar">
         <div className="topbar-info">
-          <Link className="back-link" to={`/mk/${slug}`}>
-            {courseName}
-          </Link>
-          <h1>
-            {meeting ? `Pertemuan ${meeting.number}` : "Memuat..."}
-            {meeting?.title && <span className="topbar-title"> · {meeting.title}</span>}
-          </h1>
+          <Breadcrumb
+            tone="dark"
+            items={[
+              { label: "Beranda", to: "/" },
+              { label: courseName, to: `/mk/${slug}` },
+              { label: meeting ? `Pertemuan ${meeting.number}` : "Pertemuan" },
+            ]}
+          />
+          <h1>{meeting ? meeting.title || `Pertemuan ${meeting.number}` : "Memuat pertemuan..."}</h1>
           {meeting && (
             <p>
               {meeting.projectName && <span>Project: {meeting.projectName}</span>}

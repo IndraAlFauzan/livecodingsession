@@ -53,7 +53,3 @@ export function formatDateTime(iso) {
   if (!iso) return "";
   return new Date(iso).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
 }
-
-export function chapterNumber(number) {
-  return String(number).padStart(2, "0");
-}

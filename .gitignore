@@ -5,3 +5,4 @@ live-coding-backend/data/
 live-coding-frontend/dist/
 backup-*.tar.gz
 .env.production
+live-coding-frontend/DESIGN.md

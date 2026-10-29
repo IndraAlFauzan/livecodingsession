@@ -54,4 +54,6 @@ export function formatDateTime(iso) {
   return new Date(iso).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
 }
 
-export const STATUS_LABEL = { draft: "Belum dimulai", live: "Live", finished: "Selesai" };
+export function chapterNumber(number) {
+  return String(number).padStart(2, "0");
+}

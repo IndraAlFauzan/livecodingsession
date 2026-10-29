@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { STATUS_LABEL, adminApi, formatDateTime } from "../lib/api.js";
+import PageShell from "../components/PageShell.jsx";
+import StatusStamp from "../components/StatusStamp.jsx";
+import { adminApi, chapterNumber, formatDateTime } from "../lib/api.js";
 import { storage } from "../lib/storage.js";
 
 const MEETING_REFRESH_MS = 10000;
@@ -9,10 +11,10 @@ export default function AdminPage() {
   const [token, setToken] = useState(() => storage.getAdminToken());
   const api = useMemo(() => (token ? adminApi(token) : null), [token]);
 
-  function logout() {
+  const logout = useCallback(() => {
     storage.setAdminToken(null);
     setToken(null);
-  }
+  }, []);
 
   if (!api) {
     return (
@@ -40,42 +42,48 @@ function AdminLogin({ onLogin }) {
       await adminApi(value.trim()).check();
       onLogin(value.trim());
     } catch (err) {
-      setError(err.status === 401 ? "Token dosen salah." : err.message);
+      setError(err.status === 401 ? "Token tidak cocok dengan TEACHER_TOKEN di server." : err.message);
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <div className="page page-narrow">
-      <header className="page-header">
-        <h1>Admin Dosen</h1>
-        <p className="muted">Masuk dengan teacher token yang sama seperti di backend dan VS Code.</p>
-      </header>
-      <section className="card">
+    <PageShell width="narrow" label="Admin dosen">
+      <h1 className="page-title">Masuk sebagai dosen</h1>
+      <p className="lead">Gunakan teacher token yang sama dengan setting VS Code kamu.</p>
+      <section className="panel">
         <form className="form" onSubmit={handleSubmit}>
           <label className="field">
-            <span>Teacher token</span>
-            <input type="password" value={value} onChange={(event) => setValue(event.target.value)} autoFocus />
+            <span className="field-label">Teacher token</span>
+            <input
+              type="password"
+              className="input-code"
+              value={value}
+              onChange={(event) => setValue(event.target.value)}
+              autoComplete="current-password"
+              autoFocus
+            />
           </label>
-          {error && <p className="form-error">{error}</p>}
-          <button className="btn btn-primary" type="submit" disabled={submitting || !value.trim()}>
-            {submitting ? "Memeriksa..." : "Masuk"}
+          {error && (
+            <p className="form-error" role="alert">
+              {error}
+            </p>
+          )}
+          <button className="btn btn-primary btn-block" type="submit" disabled={submitting || !value.trim()}>
+            {submitting ? "Memeriksa token..." : "Masuk ke admin"}
           </button>
         </form>
       </section>
-    </div>
+    </PageShell>
   );
 }
 
 function AdminDashboard({ api, onLogout }) {
-  const [courses, setCourses] = useState([]);
+  const [courses, setCourses] = useState(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedId = Number(searchParams.get("mk")) || null;
-  const setSelectedId = useCallback(
-    (id) => setSearchParams({ mk: String(id) }, { replace: true }),
-    [setSearchParams],
-  );
+  const setSelectedId = useCallback((id) => setSearchParams({ mk: String(id) }, { replace: true }), [setSearchParams]);
   const [newCourseName, setNewCourseName] = useState("");
   const [error, setError] = useState(null);
 
@@ -89,8 +97,7 @@ function AdminDashboard({ api, onLogout }) {
 
   const loadCourses = useCallback(async () => {
     try {
-      const { courses: list } = await api.courses();
-      setCourses(list);
+      setCourses((await api.courses()).courses);
     } catch (err) {
       handleError(err);
     }
@@ -113,77 +120,88 @@ function AdminDashboard({ api, onLogout }) {
     }
   }
 
-  const selected = courses.find((course) => course.id === selectedId) || courses[0] || null;
+  const list = courses || [];
+  const selected = list.find((course) => course.id === selectedId) || list[0] || null;
 
   return (
-    <div className="page page-wide">
-      <header className="page-header page-header-row">
-        <div>
-          <h1>Admin Dosen</h1>
-          <p className="muted">Kelola mata kuliah, kode akses, dan pertemuan.</p>
-        </div>
-        <button className="btn btn-ghost" onClick={onLogout}>
+    <PageShell
+      width="wide"
+      label="Admin dosen"
+      actions={
+        <button className="btn btn-secondary btn-small" onClick={onLogout}>
           Keluar
         </button>
-      </header>
-
+      }>
       {error && (
-        <div className="banner banner-error">
+        <div className="banner banner-error" role="alert">
           <span>{error}</span>
-          <button className="btn btn-ghost btn-small" onClick={() => setError(null)}>
+          <button className="btn btn-secondary btn-small" onClick={() => setError(null)}>
             Tutup
           </button>
         </div>
       )}
 
       <div className="admin-grid">
-        <aside className="card admin-courses">
-          <h2 className="card-title">Mata kuliah</h2>
-          <ul className="course-list">
-            {courses.map((course) => (
-              <li key={course.id}>
-                <button
-                  className={course.id === selected?.id ? "course-item selected" : "course-item"}
-                  onClick={() => setSelectedId(course.id)}>
-                  <span>{course.name}</span>
-                  <small>{course.meetingCount} pertemuan</small>
-                </button>
-              </li>
-            ))}
-          </ul>
-          {courses.length === 0 && <p className="muted">Belum ada mata kuliah.</p>}
+        <aside className="course-nav" aria-labelledby="course-nav-title">
+          <h2 className="section-title" id="course-nav-title">
+            Mata kuliah
+          </h2>
 
-          <form className="inline-form" onSubmit={createCourse}>
-            <input
-              value={newCourseName}
-              onChange={(event) => setNewCourseName(event.target.value)}
-              placeholder="Nama mata kuliah baru"
-              maxLength={100}
-            />
-            <button className="btn btn-primary" type="submit" disabled={!newCourseName.trim()}>
-              Tambah
+          {courses === null && !error && <p className="state-text">Memuat mata kuliah...</p>}
+          {courses?.length === 0 && <p className="state-text">Belum ada. Tambahkan mata kuliah pertama di bawah.</p>}
+
+          {list.length > 0 && (
+            <ul className="course-list">
+              {list.map((course) => (
+                <li key={course.id}>
+                  <button
+                    className="course-item"
+                    aria-current={course.id === selected?.id ? "true" : undefined}
+                    onClick={() => setSelectedId(course.id)}>
+                    <span className="course-item-name">{course.name}</span>
+                    <span className="course-item-meta">{course.meetingCount} pertemuan</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <form className="stack-form" onSubmit={createCourse}>
+            <label className="field">
+              <span className="field-label">Mata kuliah baru</span>
+              <input
+                value={newCourseName}
+                onChange={(event) => setNewCourseName(event.target.value)}
+                placeholder="Nama mata kuliah"
+                maxLength={100}
+              />
+            </label>
+            <button className="btn btn-secondary" type="submit" disabled={!newCourseName.trim()}>
+              Tambah mata kuliah
             </button>
           </form>
         </aside>
 
         {selected ? (
-          <CourseDetail
-            key={selected.id}
-            api={api}
-            course={selected}
-            onError={handleError}
-            onCourseChanged={loadCourses}
-          />
+          <CourseDetail key={selected.id} api={api} course={selected} onError={handleError} onCourseChanged={loadCourses} />
         ) : (
-          <section className="card empty-state">Tambahkan mata kuliah untuk mulai.</section>
+          courses?.length === 0 && (
+            <section className="empty-state">
+              <p className="empty-title">Mulai dari mata kuliah.</p>
+              <p>
+                Setiap mata kuliah mendapat kode akses sendiri. Pertemuan bisa dibuat di sini atau langsung dari VS Code
+                saat memulai sesi.
+              </p>
+            </section>
+          )
         )}
       </div>
-    </div>
+    </PageShell>
   );
 }
 
 function CourseDetail({ api, course, onError, onCourseChanged }) {
-  const [meetings, setMeetings] = useState([]);
+  const [meetings, setMeetings] = useState(null);
   const [editingName, setEditingName] = useState(null);
   const [confirm, setConfirm] = useState(null);
   const [newMeetingTitle, setNewMeetingTitle] = useState("");
@@ -209,8 +227,10 @@ function CourseDetail({ api, course, onError, onCourseChanged }) {
       setConfirm(null);
       await loadMeetings();
       if (reloadCourses) await onCourseChanged();
+      return true;
     } catch (err) {
       onError(err);
+      return false;
     }
   }
 
@@ -220,7 +240,7 @@ function CourseDetail({ api, course, onError, onCourseChanged }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      // Clipboard tidak diizinkan; kode tetap terlihat di layar.
+      // Clipboard tidak diizinkan browser; kode tetap terlihat untuk disalin manual.
     }
   }
 
@@ -233,108 +253,144 @@ function CourseDetail({ api, course, onError, onCourseChanged }) {
   function createMeeting(event) {
     event.preventDefault();
     const title = newMeetingTitle.trim();
-    run(async () => {
-      await api.createMeeting(course.id, title ? { title } : {});
-      setNewMeetingTitle("");
-    }, { reloadCourses: true });
+    run(
+      async () => {
+        await api.createMeeting(course.id, title ? { title } : {});
+        setNewMeetingTitle("");
+      },
+      { reloadCourses: true },
+    );
+  }
+
+  async function saveName(event) {
+    event.preventDefault();
+    if (await run(() => api.updateCourse(course.id, { name: editingName }), { reloadCourses: true })) {
+      setEditingName(null);
+    }
   }
 
   return (
-    <section className="admin-detail">
-      <div className="card">
-        {editingName === null ? (
-          <div className="detail-heading">
-            <h2>{course.name}</h2>
-            <button className="btn btn-ghost btn-small" onClick={() => setEditingName(course.name)}>
-              Ubah nama
-            </button>
-          </div>
-        ) : (
-          <form
-            className="inline-form"
-            onSubmit={(event) => {
-              event.preventDefault();
-              run(() => api.updateCourse(course.id, { name: editingName }), { reloadCourses: true }).then(() =>
-                setEditingName(null),
-              );
-            }}>
-            <input value={editingName} onChange={(event) => setEditingName(event.target.value)} maxLength={100} autoFocus />
-            <button className="btn btn-primary" type="submit" disabled={!editingName.trim()}>
-              Simpan
-            </button>
-            <button className="btn btn-ghost" type="button" onClick={() => setEditingName(null)}>
-              Batal
-            </button>
-          </form>
-        )}
+    <section className="course-detail" aria-labelledby="course-title">
+      {editingName === null ? (
+        <div className="detail-heading">
+          <h1 className="page-title" id="course-title">
+            {course.name}
+          </h1>
+          <button className="btn btn-quiet btn-small" onClick={() => setEditingName(course.name)}>
+            Ubah nama
+          </button>
+        </div>
+      ) : (
+        <form className="inline-form detail-heading" onSubmit={saveName}>
+          <label className="visually-hidden" htmlFor="course-name-input">
+            Nama mata kuliah
+          </label>
+          <input
+            id="course-name-input"
+            className="input-title"
+            value={editingName}
+            onChange={(event) => setEditingName(event.target.value)}
+            maxLength={100}
+            autoFocus
+          />
+          <button className="btn btn-primary" type="submit" disabled={!editingName.trim()}>
+            Simpan
+          </button>
+          <button className="btn btn-quiet" type="button" onClick={() => setEditingName(null)}>
+            Batal
+          </button>
+        </form>
+      )}
 
-        <div className="access-code">
-          <div>
-            <span className="muted">Kode akses mahasiswa</span>
-            <div className="access-code-value">
-              <code className={course.codeActive ? "" : "inactive"}>{course.accessCode}</code>
-              <span className={`pill ${course.codeActive ? "pill-finished" : "pill-draft"}`}>
-                {course.codeActive ? "Aktif" : "Nonaktif"}
-              </span>
-            </div>
+      <div className="code-panel">
+        <div className="code-panel-main">
+          <span className="field-label" id="access-code-label">
+            Kode akses mahasiswa
+          </span>
+          <div className="code-panel-value">
+            <code aria-labelledby="access-code-label" className={course.codeActive ? "" : "is-inactive"}>
+              {course.accessCode}
+            </code>
+            <StatusStamp status={course.codeActive ? "active" : "inactive"} />
           </div>
-          <div className="button-row">
-            <button className="btn btn-ghost btn-small" onClick={copyCode}>
-              {copied ? "Tersalin" : "Salin"}
-            </button>
-            <button
-              className="btn btn-ghost btn-small"
-              onClick={() => run(() => api.updateCourse(course.id, { codeActive: !course.codeActive }), { reloadCourses: true })}>
-              {course.codeActive ? "Nonaktifkan" : "Aktifkan"}
-            </button>
-            {confirm === "regenerate" ? (
-              <>
-                <span className="confirm-text">Kode lama langsung tidak berlaku.</span>
-                <button
-                  className="btn btn-danger btn-small"
-                  onClick={() => run(() => api.regenerateCode(course.id), { reloadCourses: true })}>
-                  Ya, buat baru
-                </button>
-                <button className="btn btn-ghost btn-small" onClick={() => setConfirm(null)}>
-                  Batal
-                </button>
-              </>
-            ) : (
-              <button className="btn btn-ghost btn-small" onClick={() => setConfirm("regenerate")}>
-                Buat kode baru
+          <p className="field-hint">
+            {course.codeActive
+              ? "Bagikan hanya ke kelas mata kuliah ini."
+              : "Mahasiswa tidak bisa masuk sampai kode diaktifkan lagi."}
+          </p>
+        </div>
+
+        <div className="button-row">
+          <button className="btn btn-primary btn-small" onClick={copyCode}>
+            {copied ? "Kode tersalin" : "Salin kode"}
+          </button>
+          <button
+            className="btn btn-secondary btn-small"
+            onClick={() => run(() => api.updateCourse(course.id, { codeActive: !course.codeActive }), { reloadCourses: true })}>
+            {course.codeActive ? "Nonaktifkan" : "Aktifkan"}
+          </button>
+          {confirm === "regenerate" ? (
+            <div className="confirm" role="group" aria-label="Konfirmasi kode baru">
+              <span className="confirm-text">Kode lama langsung tidak berlaku.</span>
+              <button
+                className="btn btn-danger btn-small"
+                onClick={() => run(() => api.regenerateCode(course.id), { reloadCourses: true })}>
+                Ya, buat kode baru
               </button>
-            )}
-          </div>
+              <button className="btn btn-quiet btn-small" onClick={() => setConfirm(null)}>
+                Batal
+              </button>
+            </div>
+          ) : (
+            <button className="btn btn-secondary btn-small" onClick={() => setConfirm("regenerate")}>
+              Buat kode baru
+            </button>
+          )}
         </div>
       </div>
 
-      <div className="card">
-        <h2 className="card-title">Pertemuan</h2>
+      <section aria-labelledby="meetings-title">
+        <h2 className="section-title" id="meetings-title">
+          Pertemuan
+        </h2>
 
         <form className="inline-form" onSubmit={createMeeting}>
+          <label className="visually-hidden" htmlFor="meeting-title-input">
+            Judul pertemuan baru
+          </label>
           <input
+            id="meeting-title-input"
             value={newMeetingTitle}
             onChange={(event) => setNewMeetingTitle(event.target.value)}
             placeholder="Judul pertemuan berikutnya (opsional)"
             maxLength={200}
           />
-          <button className="btn btn-primary" type="submit">
+          <button className="btn btn-secondary" type="submit">
             Tambah pertemuan
           </button>
         </form>
 
-        {meetings.length === 0 ? (
-          <p className="muted">Belum ada pertemuan. Pertemuan juga bisa dibuat langsung dari VS Code.</p>
-        ) : (
+        {meetings === null && <p className="state-text">Memuat pertemuan...</p>}
+
+        {meetings?.length === 0 && (
+          <div className="empty-state">
+            <p className="empty-title">Belum ada pertemuan.</p>
+            <p>Tambahkan di atas, atau mulai sesi dari VS Code dan pilih "Pertemuan baru".</p>
+          </div>
+        )}
+
+        {meetings?.length > 0 && (
           <div className="table-wrap">
             <table className="meeting-table">
               <thead>
                 <tr>
-                  <th>No</th>
-                  <th>Judul</th>
-                  <th>Status</th>
-                  <th>Tampil</th>
-                  <th aria-label="Aksi"></th>
+                  <th scope="col">No</th>
+                  <th scope="col">Pertemuan</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Terlihat mahasiswa</th>
+                  <th scope="col">
+                    <span className="visually-hidden">Aksi</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -355,29 +411,33 @@ function CourseDetail({ api, course, onError, onCourseChanged }) {
             </table>
           </div>
         )}
-      </div>
+      </section>
 
-      <div className="card danger-zone">
+      <section className="danger-zone" aria-labelledby="danger-title">
+        <h2 className="section-title" id="danger-title">
+          Hapus mata kuliah
+        </h2>
         {confirm === "delete-course" ? (
-          <div className="button-row">
+          <div className="confirm" role="group" aria-label="Konfirmasi hapus mata kuliah">
             <span className="confirm-text">
-              Hapus {course.name} beserta {meetings.length} pertemuan dan semua kodenya? Tidak bisa dibatalkan.
+              {course.name} beserta {meetings?.length ?? 0} pertemuan dan semua kodenya akan hilang permanen.
             </span>
-            <button
-              className="btn btn-danger btn-small"
-              onClick={() => run(() => api.deleteCourse(course.id), { reloadCourses: true })}>
+            <button className="btn btn-danger btn-small" onClick={() => run(() => api.deleteCourse(course.id), { reloadCourses: true })}>
               Ya, hapus permanen
             </button>
-            <button className="btn btn-ghost btn-small" onClick={() => setConfirm(null)}>
+            <button className="btn btn-quiet btn-small" onClick={() => setConfirm(null)}>
               Batal
             </button>
           </div>
         ) : (
-          <button className="btn btn-danger-outline btn-small" onClick={() => setConfirm("delete-course")}>
-            Hapus mata kuliah
-          </button>
+          <>
+            <p className="field-hint">Semua pertemuan dan kode yang tersimpan ikut terhapus.</p>
+            <button className="btn btn-danger-outline btn-small" onClick={() => setConfirm("delete-course")}>
+              Hapus mata kuliah ini
+            </button>
+          </>
         )}
-      </div>
+      </section>
     </section>
   );
 }
@@ -385,14 +445,17 @@ function CourseDetail({ api, course, onError, onCourseChanged }) {
 function MeetingRow({ meeting, confirming, onRename, onToggleVisible, onAskDelete, onCancelDelete, onDelete, onOpen }) {
   const [editing, setEditing] = useState(null);
   const status = meeting.status === "live" && !meeting.teacherConnected ? "finished" : meeting.status;
+  const openDisabledReason =
+    meeting.status === "draft" ? "Belum pernah dimulai" : !meeting.visible ? "Tampilkan dulu untuk membuka" : undefined;
 
   return (
-    <tr className={meeting.visible ? "" : "row-hidden"}>
-      <td className="cell-number">{meeting.number}</td>
-      <td>
+    <tr className={meeting.visible ? undefined : "row-hidden"}>
+      <td className="cell-number">{chapterNumber(meeting.number)}</td>
+      <td className="cell-title">
         {editing === null ? (
-          <button className="link-button" onClick={() => setEditing(meeting.title)} title="Klik untuk mengubah judul">
-            {meeting.title || <span className="muted">Tanpa judul</span>}
+          <button className="title-button" onClick={() => setEditing(meeting.title)}>
+            {meeting.title || <span className="placeholder-text">Tanpa judul</span>}
+            <span className="visually-hidden">, ubah judul</span>
           </button>
         ) : (
           <form
@@ -402,56 +465,61 @@ function MeetingRow({ meeting, confirming, onRename, onToggleVisible, onAskDelet
               onRename(editing.trim());
               setEditing(null);
             }}>
-            <input value={editing} onChange={(event) => setEditing(event.target.value)} maxLength={200} autoFocus />
+            <label className="visually-hidden" htmlFor={`title-${meeting.id}`}>
+              Judul pertemuan {meeting.number}
+            </label>
+            <input
+              id={`title-${meeting.id}`}
+              value={editing}
+              onChange={(event) => setEditing(event.target.value)}
+              maxLength={200}
+              autoFocus
+            />
             <button className="btn btn-primary btn-small" type="submit">
               Simpan
             </button>
-            <button className="btn btn-ghost btn-small" type="button" onClick={() => setEditing(null)}>
+            <button className="btn btn-quiet btn-small" type="button" onClick={() => setEditing(null)}>
               Batal
             </button>
           </form>
         )}
-        {meeting.continuesFrom && (
-          <div className="meeting-meta">↳ Lanjutan dari Pertemuan {meeting.continuesFrom.number}</div>
-        )}
-        {meeting.startedAt && <div className="meeting-meta">{formatDateTime(meeting.startedAt)}</div>}
+        <div className="row-meta">
+          {meeting.continuesFrom && <span>Lanjutan dari pertemuan {meeting.continuesFrom.number}</span>}
+          {meeting.startedAt && <span>{formatDateTime(meeting.startedAt)}</span>}
+        </div>
       </td>
       <td>
-        <span className={`pill pill-${status}`}>{STATUS_LABEL[status]}</span>
+        <StatusStamp status={status} />
       </td>
       <td>
-        <label className="switch" title={meeting.visible ? "Terlihat oleh mahasiswa" : "Disembunyikan"}>
+        <label className="check">
           <input type="checkbox" checked={meeting.visible} onChange={onToggleVisible} />
-          <span>{meeting.visible ? "Ya" : "Tidak"}</span>
+          <span>{meeting.visible ? "Terlihat" : "Disembunyikan"}</span>
         </label>
       </td>
       <td className="cell-actions">
         {confirming ? (
-          <>
+          <div className="confirm" role="group" aria-label={`Konfirmasi hapus pertemuan ${meeting.number}`}>
             <button className="btn btn-danger btn-small" onClick={onDelete}>
               Ya, hapus
             </button>
-            <button className="btn btn-ghost btn-small" onClick={onCancelDelete}>
+            <button className="btn btn-quiet btn-small" onClick={onCancelDelete}>
               Batal
             </button>
-          </>
+          </div>
         ) : (
-          <>
-            <button
-              className="btn btn-ghost btn-small"
-              onClick={onOpen}
-              disabled={meeting.status === "draft" || !meeting.visible}
-              title={meeting.status === "draft" ? "Belum pernah dimulai" : !meeting.visible ? "Tampilkan dulu untuk membuka" : undefined}>
+          <div className="button-row">
+            <button className="btn btn-secondary btn-small" onClick={onOpen} disabled={Boolean(openDisabledReason)} title={openDisabledReason}>
               Buka
             </button>
             <button
-              className="btn btn-ghost btn-small"
+              className="btn btn-quiet btn-small"
               onClick={onAskDelete}
               disabled={meeting.teacherConnected}
               title={meeting.teacherConnected ? "Hentikan sesi dari VS Code dulu" : undefined}>
               Hapus
             </button>
-          </>
+          </div>
         )}
       </td>
     </tr>

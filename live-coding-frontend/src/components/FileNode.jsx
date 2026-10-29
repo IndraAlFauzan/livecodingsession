@@ -2,6 +2,26 @@ import { useState } from "react";
 
 const CHANGE_LABEL = { new: "Baru", modified: "Diubah" };
 
+function FolderIcon({ open }) {
+  return (
+    <svg className="tree-icon" viewBox="0 0 16 16" aria-hidden="true">
+      {open ? (
+        <path d="M1.5 3.5h4l1.5 1.5h7.5v1.5H4.2L2.5 12.5h-1z M4.2 6.5h11.3l-2 6H2.5z" />
+      ) : (
+        <path d="M1.5 3.5h4l1.5 1.5h7.5v7.5h-13z" />
+      )}
+    </svg>
+  );
+}
+
+function FileIcon() {
+  return (
+    <svg className="tree-icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M3.5 1.5h6l3 3v10h-9z M9.5 1.5v3h3" />
+    </svg>
+  );
+}
+
 function folderHasChanges(folderPath, changes) {
   const prefix = `${folderPath}/`;
   return Object.keys(changes).some((path) => path.startsWith(prefix));
@@ -13,11 +33,17 @@ export default function FileNode({ node, selectedFile, activeFile, flashFiles, c
   if (node.type === "folder") {
     return (
       <div className="node">
-        <button className="tree-row folder-row" onClick={() => setExpanded((value) => !value)}>
-          <span className="chevron">{expanded ? "▾" : "▸"}</span>
-          <span className="icon">{expanded ? "📂" : "📁"}</span>
+        <button className="tree-row folder-row" aria-expanded={expanded} onClick={() => setExpanded((value) => !value)}>
+          <span className="chevron" aria-hidden="true">
+            {expanded ? "▾" : "▸"}
+          </span>
+          <FolderIcon open={expanded} />
           <span className="node-name">{node.name}</span>
-          {folderHasChanges(node.path, changes) && <span className="folder-change" title="Ada file yang berubah" />}
+          {folderHasChanges(node.path, changes) && (
+            <span className="folder-change" title="Ada file yang berubah">
+              <span className="visually-hidden">ada file yang berubah</span>
+            </span>
+          )}
         </button>
 
         {expanded && (
@@ -47,12 +73,12 @@ export default function FileNode({ node, selectedFile, activeFile, flashFiles, c
 
   return (
     <button className={classes.join(" ")} onClick={() => onSelectFile(node.path)} title={node.path}>
-      <span className="chevron"></span>
-      <span className="icon">📄</span>
+      <span className="chevron" aria-hidden="true"></span>
+      <FileIcon />
       <span className="node-name">{node.name}</span>
       {change && <span className={`change-badge ${change}`}>{CHANGE_LABEL[change]}</span>}
-      {activeFile === node.path && <span className="badge">LIVE</span>}
-      {flashFiles.has(node.path) && <span className="dot" />}
+      {activeFile === node.path && <span className="badge">Dosen</span>}
+      {flashFiles.has(node.path) && <span className="dot" title="Baru saja berubah" />}
     </button>
   );
 }

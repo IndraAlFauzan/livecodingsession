@@ -6,7 +6,8 @@ import FileTree from "../components/FileTree.jsx";
 import ProtectedArea from "../components/ProtectedArea.jsx";
 import StatusBar from "../components/StatusBar.jsx";
 import { WS_URL } from "../config.js";
-import { STATUS_LABEL } from "../lib/api.js";
+import PageShell from "../components/PageShell.jsx";
+import StatusStamp from "../components/StatusStamp.jsx";
 import { getCourseAccess, storage } from "../lib/storage.js";
 import { sortTree } from "../utils/tree.js";
 
@@ -228,14 +229,14 @@ function MeetingViewer({ slug, meetingId, access, onAccessRevoked }) {
 
   if (closedMessage) {
     return (
-      <div className="page page-narrow">
-        <section className="card empty-state">
-          <p>{closedMessage}</p>
+      <PageShell width="narrow">
+        <section className="empty-state" role="alert">
+          <p className="empty-title">{closedMessage}</p>
           <Link className="btn btn-primary" to={`/mk/${slug}`}>
             Kembali ke daftar pertemuan
           </Link>
         </section>
-      </div>
+      </PageShell>
     );
   }
 
@@ -250,7 +251,7 @@ function MeetingViewer({ slug, meetingId, access, onAccessRevoked }) {
       <header className="topbar">
         <div className="topbar-info">
           <Link className="back-link" to={`/mk/${slug}`}>
-            ← {courseName}
+            {courseName}
           </Link>
           <h1>
             {meeting ? `Pertemuan ${meeting.number}` : "Memuat..."}
@@ -261,7 +262,7 @@ function MeetingViewer({ slug, meetingId, access, onAccessRevoked }) {
               {meeting.projectName && <span>Project: {meeting.projectName}</span>}
               {meeting.continuesFrom && (
                 <Link to={`/mk/${slug}/p/${meeting.continuesFrom.id}`}>
-                  ↳ Lanjutan dari Pertemuan {meeting.continuesFrom.number}
+                  Lanjutan dari pertemuan {meeting.continuesFrom.number}
                 </Link>
               )}
             </p>
@@ -270,9 +271,7 @@ function MeetingViewer({ slug, meetingId, access, onAccessRevoked }) {
 
         <div className="topbar-actions">
           {meeting && (
-            <span className={`pill pill-${isLive ? "live" : "finished"}`}>
-              {isLive ? STATUS_LABEL.live : STATUS_LABEL.finished}
-            </span>
+            <StatusStamp status={isLive ? "live" : "finished"} />
           )}
           {isLive && (
             <label className="follow-toggle">
@@ -290,7 +289,9 @@ function MeetingViewer({ slug, meetingId, access, onAccessRevoked }) {
       {notice && (
         <div className="alert">
           <span>{notice}</span>
-          <button onClick={() => setNotice(null)}>Tutup</button>
+          <button className="btn btn-on-dark btn-small" onClick={() => setNotice(null)}>
+            Tutup
+          </button>
         </div>
       )}
 

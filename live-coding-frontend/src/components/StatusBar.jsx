@@ -1,3 +1,5 @@
+import { copyrightText } from "./PageShell.jsx";
+
 const CONNECTION_LABEL = {
   connecting: "Menghubungkan",
   connected: "Terhubung",
@@ -12,10 +14,11 @@ export default function StatusBar({ connectionStatus, studentName, activeFile, i
         Masuk sebagai: <strong>{studentName}</strong>
       </span>
       {isLive && (
-        <span>
+        <span className="status-file">
           Dosen membuka: <strong>{activeFile || "-"}</strong>
         </span>
       )}
+      <span className="status-copyright">{copyrightText()}</span>
     </footer>
   );
 }

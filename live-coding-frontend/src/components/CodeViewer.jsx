@@ -66,7 +66,6 @@ export default function CodeViewer({ path, file, highlights, followHighlights })
           <span className="language-label">asset</span>
         </div>
         <div className="asset-placeholder">
-          <div className="asset-icon">🖼️</div>
           <h2>File aset</h2>
           <p>Pratinjau file gambar/media belum tersedia.</p>
           <code>{path}</code>

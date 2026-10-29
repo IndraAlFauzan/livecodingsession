@@ -72,7 +72,7 @@ export default function ProtectedArea({ watermark, children }) {
       {hidden && (
         <div className="screenshot-shield" role="alert">
           <p>Kode disembunyikan karena terdeteksi shortcut screenshot.</p>
-          <button className="btn btn-primary" onClick={() => setHidden(false)}>
+          <button className="btn btn-on-dark" onClick={() => setHidden(false)}>
             Tampilkan lagi
           </button>
         </div>

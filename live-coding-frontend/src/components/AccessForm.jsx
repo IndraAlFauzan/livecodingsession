@@ -13,7 +13,7 @@ export default function AccessForm({ expectedSlug, message, onSuccess }) {
     const trimmedName = name.trim();
     const trimmedCode = code.trim();
     if (!trimmedName || !trimmedCode) {
-      setError("Nama dan kode akses wajib diisi.");
+      setError("Isi nama lengkap dan kode akses dulu.");
       return;
     }
 
@@ -36,37 +36,44 @@ export default function AccessForm({ expectedSlug, message, onSuccess }) {
   }
 
   return (
-    <form className="form" onSubmit={handleSubmit}>
+    <form className="form" onSubmit={handleSubmit} noValidate>
       <label className="field">
-        <span>Nama lengkap</span>
+        <span className="field-label">Nama lengkap</span>
         <input
           value={name}
           onChange={(event) => setName(event.target.value)}
-          placeholder="Contoh: Budi Santoso"
+          placeholder="Nama sesuai daftar hadir"
           maxLength={60}
           autoComplete="name"
         />
       </label>
 
       <label className="field">
-        <span>Kode akses mata kuliah</span>
+        <span className="field-label">Kode akses mata kuliah</span>
         <input
-          className="mono"
+          className="input-code"
           value={code}
           onChange={(event) => setCode(event.target.value.toUpperCase())}
-          placeholder="Contoh: PM-7K3XQ2"
+          placeholder="Kode dari dosen"
           maxLength={20}
           autoComplete="off"
           spellCheck={false}
+          aria-describedby="code-hint"
         />
+        <span className="field-hint" id="code-hint">
+          Contoh bentuknya: PM-7K3XQ2. Huruf besar atau kecil sama saja.
+        </span>
       </label>
 
-      {error && <p className="form-error">{error}</p>}
+      {error && (
+        <p className="form-error" role="alert">
+          {error}
+        </p>
+      )}
 
-      <button className="btn btn-primary" type="submit" disabled={submitting}>
-        {submitting ? "Memeriksa..." : "Masuk"}
+      <button className="btn btn-primary btn-block" type="submit" disabled={submitting}>
+        {submitting ? "Memeriksa kode..." : "Masuk kelas"}
       </button>
-      <p className="form-hint">Nama kamu ditampilkan sebagai watermark saat melihat kode.</p>
     </form>
   );
 }

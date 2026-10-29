@@ -247,9 +247,48 @@ Viewer mahasiswa:
 ### Data yang dikirim
 Extension hanya mengirim file di dalam folder project yang tidak dikecualikan. File yang disembunyikan atau dikecualikan tidak pernah meninggalkan komputer dosen.
 
-## Deploy ke VPS
+## Deploy dengan Docker (Coolify)
 
-Contoh berikut memakai Ubuntu 22.04, nginx, dan PM2, dengan dua subdomain:
+Repo menyediakan setup production berbasis Docker:
+
+| File | Fungsi |
+|---|---|
+| `docker-compose.yml` | Service `backend` (Node.js, port internal 3000) dan `frontend` (Nginx static, port internal 80), named volume `livecoding-data` untuk SQLite |
+| `live-coding-backend/Dockerfile` | Image backend Node 22 Alpine, berjalan sebagai user non-root, healthcheck ke `/health` |
+| `live-coding-frontend/Dockerfile` | Build Vite lalu disajikan Nginx, dengan fallback SPA |
+| `.env.production.example` | Template environment production |
+
+Compose tidak mempublish port ke host; routing domain dan HTTPS diurus Coolify:
+
+| Domain | Service | Port internal |
+|---|---|---|
+| `https://live.devrisetiaf.cloud` | `frontend` | 80 |
+| `https://api-live.devrisetiaf.cloud` | `backend` | 3000 |
+
+Environment yang wajib diisi (lihat komentar di `.env.production.example`):
+
+| Variabel | Jenis | Contoh |
+|---|---|---|
+| `TEACHER_TOKEN` | runtime, rahasia | hasil `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
+| `PUBLIC_BASE_URL` | runtime | `https://live.devrisetiaf.cloud` |
+| `MAX_FILE_SIZE_BYTES` | runtime, opsional | `524288` |
+| `VITE_WS_URL` | build-time | `wss://api-live.devrisetiaf.cloud` |
+| `VITE_API_URL` | build-time | `https://api-live.devrisetiaf.cloud` |
+
+Variabel `VITE_*` ditanam saat build; mengubahnya membutuhkan rebuild frontend. Database tersimpan di `/app/data/livecoding.db` dalam volume `livecoding-data` dan tetap ada saat container di-restart atau di-deploy ulang.
+
+Menjalankan stack production secara lokal:
+
+```bash
+cp .env.production.example .env.production   # isi nilainya, jangan di-commit
+docker compose --env-file .env.production up -d --build
+```
+
+Setelah deploy, arahkan VS Code dosen ke `wss://api-live.devrisetiaf.cloud` dengan token yang sama (lihat [langkah 7](#7-arahkan-vs-code-ke-server)).
+
+## Deploy ke VPS (manual, tanpa Docker)
+
+Alternatif tanpa Docker. Contoh berikut memakai Ubuntu 22.04, nginx, dan PM2, dengan dua subdomain:
 - `api.domainkamu.com` untuk backend
 - `live.domainkamu.com` untuk web mahasiswa dan admin
 

@@ -1,0 +1,33 @@
+# Production stack: backend (Node.js HTTP + WebSocket + SQLite) dan frontend (Nginx static).
+# Tidak ada port host yang dipublish; routing domain dan HTTPS diurus Coolify:
+#   frontend -> port 80, backend -> port 3000.
+# Jalankan lokal: docker compose --env-file .env.production up -d --build
+
+services:
+  backend:
+    build:
+      context: ./live-coding-backend
+    restart: unless-stopped
+    environment:
+      PORT: "3000"
+      TEACHER_TOKEN: ${TEACHER_TOKEN:?TEACHER_TOKEN wajib diisi}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?PUBLIC_BASE_URL wajib diisi}
+      MAX_FILE_SIZE_BYTES: ${MAX_FILE_SIZE_BYTES:-524288}
+      DB_PATH: /app/data/livecoding.db
+    volumes:
+      - livecoding-data:/app/data
+    expose:
+      - "3000"
+
+  frontend:
+    build:
+      context: ./live-coding-frontend
+      args:
+        VITE_WS_URL: ${VITE_WS_URL:?VITE_WS_URL wajib diisi}
+        VITE_API_URL: ${VITE_API_URL:?VITE_API_URL wajib diisi}
+    restart: unless-stopped
+    expose:
+      - "80"
+
+volumes:
+  livecoding-data:

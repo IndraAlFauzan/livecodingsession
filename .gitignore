@@ -4,3 +4,4 @@ node_modules/
 live-coding-backend/data/
 live-coding-frontend/dist/
 backup-*.tar.gz
+.env.production

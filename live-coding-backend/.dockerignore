@@ -1,0 +1,14 @@
+node_modules
+.env
+.env.*
+!.env.example
+.git
+*.log
+data
+data/*.db
+data/*.sqlite
+data/*.sqlite3
+examples
+Dockerfile
+.dockerignore
+.DS_Store

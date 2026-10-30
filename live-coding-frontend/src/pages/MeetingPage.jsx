@@ -186,7 +186,8 @@ function MeetingViewer({ slug, meetingId, access, onAccessRevoked }) {
 
         case "error":
           if (message.reason === "invalid_code") revokeRef.current(message.message);
-          else if (message.reason === "unavailable") setClosedMessage(message.message);
+          else if (message.reason === "unavailable" || message.reason === "invalid_name")
+            setClosedMessage(message.message);
           else setNotice(message.message);
           break;
 

@@ -155,10 +155,14 @@ function handleStudentJoin(ws, message) {
     return reject(ws, 'Pertemuan ini belum tersedia.', 'unavailable');
   }
 
+  // Daftar hadir hanya berguna kalau namanya nyata. Klien tanpa nama ditolak,
+  // bukan dicatat sebagai 'Tanpa nama' -- biasanya itu tab lama dari versi
+  // frontend sebelum nama dikirim, dan barisnya akan jadi hantu di daftar.
   const studentName =
-    typeof message.studentName === 'string' && message.studentName.trim()
-      ? message.studentName.trim().slice(0, 60)
-      : 'Tanpa nama';
+    typeof message.studentName === 'string' ? message.studentName.trim().slice(0, 60) : '';
+  if (!studentName) {
+    return reject(ws, 'Nama mahasiswa tidak terkirim. Muat ulang halaman lalu masuk lagi.', 'invalid_name');
+  }
 
   live.getRoom(meeting.id).students.add(ws);
   ws.role = 'student';

@@ -8,6 +8,7 @@ import FileTree from "../components/session/FileTree.jsx";
 import SessionBar from "../components/session/SessionBar.jsx";
 import { Card, EmptyState, Icon } from "../components/ui/index.js";
 import { useStudentAuth } from "../hooks/useStudentAuth.jsx";
+import { storage } from "../lib/storage.js";
 import useLiveSession from "../hooks/useLiveSession.js";
 
 export default function MeetingPage() {
@@ -32,7 +33,38 @@ export default function MeetingPage() {
   );
 }
 
-function MeetingViewer({ slug, meetingId, token, studentName, onAccessRevoked, onSessionExpired }) {
+// Dosen menengok halaman mahasiswa dengan tanda dosennya sendiri. Tidak lewat
+// StudentGate, dan tidak ikut terhitung sebagai penonton.
+export function MeetingPreviewPage() {
+  const { slug, meetingId } = useParams();
+  const teacherToken = storage.getAdminToken();
+
+  if (!teacherToken) {
+    return (
+      <div className="lc-page">
+        <div className="lc-page__body">
+          <p className="lc-muted">
+            Pratinjau ini hanya untuk dosen. Masuk dulu di <Link to="/admin">halaman admin</Link>.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <MeetingViewer
+      key={meetingId}
+      slug={slug}
+      meetingId={meetingId}
+      teacherToken={teacherToken}
+      studentName="Pratinjau dosen"
+      onAccessRevoked={() => {}}
+      onSessionExpired={() => {}}
+    />
+  );
+}
+
+function MeetingViewer({ slug, meetingId, token, teacherToken, studentName, onAccessRevoked, onSessionExpired }) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const {
     connectionStatus,
@@ -53,7 +85,7 @@ function MeetingViewer({ slug, meetingId, token, studentName, onAccessRevoked, o
     closedMessage,
     teacherWaiting,
     openFile,
-  } = useLiveSession({ meetingId, token, onAccessRevoked, onSessionExpired });
+  } = useLiveSession({ meetingId, token, teacherToken, onAccessRevoked, onSessionExpired });
 
   function selectFile(path) {
     openFile(path);

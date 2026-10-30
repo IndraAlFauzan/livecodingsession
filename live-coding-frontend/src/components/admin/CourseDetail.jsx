@@ -9,7 +9,6 @@ import ViewerList from "./ViewerList.jsx";
 import AppHeader from "../layout/AppHeader.jsx";
 import { Button, Card, Dialog, EmptyState, IconButton, Tabs, TextField } from "../ui/index.js";
 import { formatDateTime } from "../../lib/api.js";
-import { storage } from "../../lib/storage.js";
 import { derivedStatus, isRunning } from "../../utils/meetingStatus.js";
 import { MEETING_REFRESH_MS, FILTERS } from "./adminConstants.js";
 
@@ -85,10 +84,10 @@ export default function CourseDetail({ api, course, onError, onCourseChanged, on
     }
   }
 
+  // Jalur pratinjau, bukan halaman mahasiswa: dosen memakai tanda dosennya
+  // sendiri, jadi tidak perlu akun mahasiswa dan tidak ikut terhitung menonton.
   function openMeeting(meeting) {
-    storage.saveCourse(course.slug, course.name, course.accessCode);
-    if (!storage.getStudentName()) storage.setStudentName("Dosen");
-    window.open(`/mk/${course.slug}/p/${meeting.id}`, "_blank", "noopener");
+    window.open(`/pratinjau/mk/${course.slug}/p/${meeting.id}`, "_blank", "noopener");
   }
 
   function createMeeting(event) {

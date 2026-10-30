@@ -246,6 +246,23 @@ async function main() {
   check(Boolean(dilihatDosen), `dosen melihat penonton (${pantau.total} orang)`);
   check(dilihatDosen.nim === nimRina, `daftar penonton membawa NIM (${dilihatDosen.nim})`);
 
+  // Dosen menengok halaman mahasiswa lewat tombol "Buka" di halaman admin.
+  const pratinjau = await connect();
+  pratinjau.sendJson({ type: 'student:join', meetingId: p1.id, teacherToken: TOKEN });
+  const initPratinjau = await pratinjau.next('session:init');
+  check(initPratinjau.tree.length === 3, 'dosen bisa menengok halaman mahasiswa tanpa akun mahasiswa');
+  const setelahPratinjau = (await admin('GET', `/api/admin/meetings/${p1.id}/viewers`)).data;
+  check(setelahPratinjau.watchingNow.length === 1, 'pratinjau dosen tidak ikut terhitung menonton');
+  check(
+    !setelahPratinjau.viewers.some((v) => v.name === 'Dosen'),
+    'pratinjau dosen tidak tercatat sebagai mahasiswa',
+  );
+  const palsu = await connect();
+  palsu.sendJson({ type: 'student:join', meetingId: p1.id, teacherToken: 'bukan-token-dosen' });
+  check((await palsu.next('error')).reason === 'unauthenticated', 'tanda dosen palsu ditolak');
+  palsu.close();
+  pratinjau.close();
+
   // Nama di daftar pantau diambil dari akun, bukan dari pesan klien; menyebut
   // nama lain saat bergabung tidak mengubah apa pun yang tercatat.
   const penyamar = await connect();

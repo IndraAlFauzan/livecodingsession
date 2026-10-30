@@ -128,30 +128,46 @@ function attachRealtime(server) {
   function handleStudentJoin(ws, message) {
     const meeting = typeof message.meetingId === 'string' ? db.getMeeting(message.meetingId) : null;
 
+    // Dosen boleh menengok halaman mahasiswa untuk memeriksa apa yang mereka
+    // lihat. Jalurnya dipisah dari jalur mahasiswa supaya tidak ada akun palsu
+    // bernama "Dosen" yang ikut tercatat sebagai penonton.
+    const pratinjau = isTeacherToken(message.teacherToken);
+
     // Identitas datang dari tanda sesi, bukan dari badan pesan. Klien tidak lagi
     // bisa menyebut nama sendiri, jadi tidak ada cara menyamar jadi orang lain.
-    const akun = db.getStudentBySession(message.studentToken);
-    if (!akun) {
+    const akun = pratinjau ? null : db.getStudentBySession(message.studentToken);
+    if (!pratinjau && !akun) {
       return reject(ws, 'Sesi kamu sudah berakhir. Masuk lagi lalu buka pertemuan ini.', 'unauthenticated');
     }
 
     if (!meeting) return reject(ws, 'Pertemuan tidak ditemukan.', 'invalid_code');
-    if (!db.isEnrolled(meeting.courseId, akun.id)) {
+    if (!pratinjau && !db.isEnrolled(meeting.courseId, akun.id)) {
       return reject(ws, 'Kamu belum bergabung di mata kuliah ini.', 'not_enrolled');
     }
-    if (!meeting.visible || meeting.status === 'draft') {
+    // Dosen boleh menengok pertemuan yang masih draft atau disembunyikan --
+    // justru itu gunanya memeriksa sebelum dibuka ke mahasiswa.
+    if (!pratinjau && (!meeting.visible || meeting.status === 'draft')) {
       return reject(ws, 'Pertemuan ini belum tersedia.', 'unavailable');
     }
 
     live.getRoom(meeting.id).students.add(ws);
     ws.role = 'student';
     ws.meetingId = meeting.id;
-    ws.studentId = akun.id;
-    ws.studentNim = akun.nim;
-    ws.studentName = akun.name;
+    ws.preview = pratinjau;
     ws.viewerId = `v${++viewerSeq}`;
     ws.viewingFile = null;
     ws.following = true;
+
+    if (pratinjau) {
+      // Tidak dicatat dan tidak dihitung: dosen sedang melihat layarnya sendiri,
+      // bukan menghadiri kelasnya sendiri.
+      send(ws, buildInit(meeting.id));
+      return;
+    }
+
+    ws.studentId = akun.id;
+    ws.studentNim = akun.nim;
+    ws.studentName = akun.name;
 
     // Daftar "siapa yang pernah membuka pertemuan ini" tetap seperti sebelumnya;
     // bedanya namanya kini berasal dari akun, bukan dari kiriman klien.

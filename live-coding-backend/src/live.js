@@ -49,13 +49,15 @@ function listViewers(meetingId) {
   if (!room) return [];
   // Nama dan NIM berasal dari akun: join ditolak tanpa tanda sesi yang sah,
   // jadi keduanya selalu terisi dan tidak butuh nilai cadangan.
-  return [...room.students].map((student) => ({
-    id: student.viewerId,
-    nim: student.studentNim,
-    name: student.studentName,
-    file: student.viewingFile || null,
-    following: student.following !== false,
-  }));
+  return [...room.students]
+    .filter((student) => !student.preview)
+    .map((student) => ({
+      id: student.viewerId,
+      nim: student.studentNim,
+      name: student.studentName,
+      file: student.viewingFile || null,
+      following: student.following !== false,
+    }));
 }
 
 function pushViewers(meetingId) {

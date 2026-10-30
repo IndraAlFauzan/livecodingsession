@@ -121,6 +121,7 @@ Semua rute di bawah `/me` dan `/courses` butuh header `X-Student-Token` dari has
 | `teacher:join` | dosen | `meetingId, teacherToken, projectName, continuesFrom` |
 | `teacher:joined` | server | `studentUrl, accessCode, courseName` |
 | `student:join` | mahasiswa | `meetingId, studentToken` (nama diambil dari akun) |
+| `student:join` | dosen | `meetingId, teacherToken` — pratinjau: boleh membuka pertemuan draft/tersembunyi, tidak dicatat dan tidak dihitung sebagai penonton |
 | `session:init` | server | `course, meeting, tree, activeFile, changes, hasTeacher` |
 | `project:snapshot`, `tree:update` | dosen | `tree` |
 | `file:create`, `file:update` | dosen | `path, content, language` (diteruskan dengan `change`) |

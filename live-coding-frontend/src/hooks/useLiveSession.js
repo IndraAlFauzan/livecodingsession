@@ -4,7 +4,7 @@ import { sortTree } from "../utils/tree.js";
 
 // Seluruh percakapan WebSocket satu pertemuan. Dipisah dari komponen supaya
 // MeetingPage hanya mengurus tampilan, dan alur sesi bisa dibaca utuh di sini.
-export default function useLiveSession({ meetingId, token, onAccessRevoked, onSessionExpired }) {
+export default function useLiveSession({ meetingId, token, teacherToken, onAccessRevoked, onSessionExpired }) {
   const socketRef = useRef(null);
   const [connectionStatus, setConnectionStatus] = useState("connecting");
   const [course, setCourse] = useState(null);
@@ -183,7 +183,13 @@ export default function useLiveSession({ meetingId, token, onAccessRevoked, onSe
         setConnectionStatus("connected");
         ws.send(
           // Nama tidak dikirim: server mengambilnya dari akun pemilik tanda sesi.
-          JSON.stringify({ type: "student:join", meetingId, studentToken: token }),
+          // Dalam pratinjau dosen, yang dibawa tanda dosen -- tidak ada akun
+          // mahasiswa yang terlibat sama sekali.
+          JSON.stringify(
+            teacherToken
+              ? { type: "student:join", meetingId, teacherToken }
+              : { type: "student:join", meetingId, studentToken: token },
+          ),
         );
       };
 
@@ -208,7 +214,7 @@ export default function useLiveSession({ meetingId, token, onAccessRevoked, onSe
       clearTimeout(retryTimer);
       ws?.close();
     };
-  }, [meetingId, token]);
+  }, [meetingId, token, teacherToken]);
 
   useEffect(() => {
     const ws = socketRef.current;

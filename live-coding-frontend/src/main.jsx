@@ -6,7 +6,7 @@ import { StudentAuthProvider } from "./hooks/useStudentAuth.jsx";
 import { storage } from "./lib/storage.js";
 import HomePage from "./pages/HomePage.jsx";
 import CoursePage from "./pages/CoursePage.jsx";
-import MeetingPage from "./pages/MeetingPage.jsx";
+import MeetingPage, { MeetingPreviewPage } from "./pages/MeetingPage.jsx";
 import AdminPage from "./pages/AdminPage.jsx";
 import "./design/tokens.css";
 import "./design/bundle.css";
@@ -25,6 +25,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           <Route path="/" element={mahasiswa(<HomePage />)} />
           <Route path="/mk/:slug" element={mahasiswa(<CoursePage />)} />
           <Route path="/mk/:slug/p/:meetingId" element={mahasiswa(<MeetingPage />)} />
+          <Route path="/pratinjau/mk/:slug/p/:meetingId" element={<MeetingPreviewPage />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

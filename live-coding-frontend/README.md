@@ -9,6 +9,7 @@ Web untuk mahasiswa (melihat kode dosen) dan halaman admin dosen. React + Vite +
 | `/` | mahasiswa | Masuk/daftar akun, lalu gabung mata kuliah dengan kode akses |
 | `/mk/:slug` | mahasiswa | Daftar pertemuan (Live/Selesai, label lanjutan) |
 | `/mk/:slug/p/:id` | mahasiswa | Viewer kode: real-time saat live, arsip read-only setelah selesai |
+| `/pratinjau/mk/:slug/p/:id` | dosen | Pratinjau halaman mahasiswa memakai teacher token, tanpa akun mahasiswa |
 | `/admin` | dosen | Kelola mata kuliah, kode akses, dan pertemuan (login dengan teacher token) |
 
 ## Akun mahasiswa

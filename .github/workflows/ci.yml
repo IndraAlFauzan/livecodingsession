@@ -1,0 +1,98 @@
+# Menjalankan pemeriksaan yang sama untuk ketiga bagian setiap kali kode masuk.
+# Backend memakai node:sqlite bawaan Node, jadi versi Node minimal 22.
+#
+# Alur: kerjakan di branch fitur, buka PR ke main. CI jadi syarat merge,
+# jadi apa pun yang masuk main sudah diperiksa -- dan Coolify deploy dari main.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "22"
+
+jobs:
+  frontend:
+    name: Frontend (lint + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: live-coding-frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: live-coding-frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+
+  backend:
+    name: Backend (smoke test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: live-coding-backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: live-coding-backend/package-lock.json
+      - run: npm ci
+
+      # Server dinyalakan dan diuji dalam satu langkah supaya prosesnya pasti hidup.
+      - name: Nyalakan server lalu jalankan smoke test
+        env:
+          TEACHER_TOKEN: token-ci
+          PORT: "3000"
+          DB_PATH: ${{ runner.temp }}/ci.db
+          PUBLIC_BASE_URL: http://localhost:5174
+        run: |
+          node src/index.js > "$RUNNER_TEMP/backend.log" 2>&1 &
+          # trap, bukan kill di akhir: di bawah `bash -e` baris setelah tes yang
+          # gagal tidak pernah dieksekusi, jadi servernya akan tertinggal hidup.
+          trap 'kill %1 2>/dev/null || true' EXIT
+
+          for _ in $(seq 1 30); do
+            curl -sf http://localhost:3000/health > /dev/null && break
+            sleep 1
+          done
+          if ! curl -sf http://localhost:3000/health > /dev/null; then
+            echo "Server tidak kunjung siap:"
+            cat "$RUNNER_TEMP/backend.log"
+            exit 1
+          fi
+
+          npm test
+
+      - name: Log server bila gagal
+        if: failure()
+        run: cat "$RUNNER_TEMP/backend.log" || true
+
+  extension:
+    name: Extension (compile + package)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: live-coding-classroom
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: live-coding-classroom/package-lock.json
+      - run: npm ci
+      - run: npm run compile
+      # Membungkus memastikan kontribusi package.json dan berkas resources valid.
+      - run: npx --yes @vscode/vsce package --allow-missing-repository --out /tmp/extension.vsix

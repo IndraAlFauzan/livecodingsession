@@ -1,5 +1,7 @@
 # Live Coding Classroom
 
+[![CI](https://github.com/IndraAlFauzan/livecodingsession/actions/workflows/ci.yml/badge.svg)](https://github.com/IndraAlFauzan/livecodingsession/actions/workflows/ci.yml)
+
 Sistem untuk membagikan sesi live coding dosen ke mahasiswa secara real-time, sekaligus menyimpan kode setiap pertemuan supaya bisa dibuka lagi kapan saja.
 
 Dosen cukup mengetik di VS Code seperti biasa. Mahasiswa membuka browser, memasukkan kode akses mata kuliah, lalu melihat file tree dan isi file yang sedang dikerjakan dosen, termasuk file yang sedang dibuka dosen ("Follow Dosen"). Setelah kelas selesai, kode tersimpan sebagai arsip pertemuan yang bisa dibuka read-only.
@@ -258,7 +260,56 @@ Menghentikan sesi dari VS Code mengakhiri pertemuan seketika tanpa tenggang.
 ### Data yang dikirim
 Extension hanya mengirim file di dalam folder project yang tidak dikecualikan. File yang disembunyikan atau dikecualikan tidak pernah meninggalkan komputer dosen.
 
+## Pemeriksaan otomatis
+
+Setiap push ke `main` dan setiap pull request menjalankan `.github/workflows/ci.yml`:
+
+| Job | Yang dijalankan |
+|---|---|
+| Frontend | `npm ci` · `npm run lint` · `npm run build` |
+| Backend | `npm ci` · nyalakan server dengan database sementara · `npm test` (35 pengecekan) |
+| Extension | `npm ci` · `npm run compile` · `vsce package` |
+
+Ketiganya memakai Node 22. Backend memakai `node:sqlite` bawaan Node, jadi Node 20 ke bawah tidak bisa menjalankannya — batas itu ditulis di `engines` tiap `package.json`.
+
+Menjalankan pemeriksaan yang sama di komputer sendiri:
+
+```bash
+cd live-coding-frontend && npm run lint && npm run build
+cd ../live-coding-backend && npm start &   # lalu di terminal lain:
+TEACHER_TOKEN=<token> npm test
+cd ../live-coding-classroom && npm run compile
+```
+
 ## Deploy dengan Docker (Coolify)
+
+### Alur kerja
+
+Coolify memantau `main` dan deploy setiap ada yang masuk. Supaya yang masuk selalu sudah diperiksa, `main` dilindungi dan perubahan masuk lewat pull request.
+
+```
+git switch -c fitur-x        kerjakan di branch sendiri
+git push -u origin fitur-x
+      |
+      v
+buka Pull Request ke main    CI jalan di PR
+      |
+      |  merge diblokir sampai ketiga job hijau
+      v
+merge ke main                <- ini sekaligus keputusan deploy
+      |
+      v
+Coolify build & deploy ke live.devrisetiaf.cloud
+```
+
+Karena merge berarti deploy, PR yang sudah hijau bisa dibiarkan menunggu — tidak perlu di-merge di tengah jam kuliah.
+
+**Sekali saja di GitHub** (Settings → Branches → Add branch ruleset untuk `main`):
+
+- *Require a pull request before merging*
+- *Require status checks to pass* → pilih `Frontend (lint + build)`, `Backend (smoke test)`, `Extension (compile + package)`
+
+Nama job baru muncul di daftar setelah CI pernah jalan sekali.
 
 Repo menyediakan setup production berbasis Docker:
 
@@ -288,7 +339,7 @@ Environment yang wajib diisi (lihat komentar di `.env.production.example`):
 | `VITE_WS_URL` | build-time | `wss://api-live.devrisetiaf.cloud` |
 | `VITE_API_URL` | build-time | `https://api-live.devrisetiaf.cloud` |
 
-Variabel `VITE_*` ditanam saat build; mengubahnya membutuhkan rebuild frontend. Database tersimpan di `/app/data/livecoding.db` dalam volume `livecoding-data` dan tetap ada saat container di-restart atau di-deploy ulang.
+Variabel `VITE_*` ditanam saat build; mengubahnya membutuhkan rebuild frontend. Kalau `VITE_WS_URL` kosong, build image frontend sengaja **gagal** — tanpa penjaga itu `src/config.js` diam-diam jatuh ke `ws://localhost:3000`, menghasilkan container sehat yang tidak pernah bisa dipakai mahasiswa. Database tersimpan di `/app/data/livecoding.db` dalam volume `livecoding-data` dan tetap ada saat container di-restart atau di-deploy ulang.
 
 Menjalankan stack production secara lokal:
 

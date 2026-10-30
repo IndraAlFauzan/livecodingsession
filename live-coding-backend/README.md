@@ -24,6 +24,7 @@ npm run dev
 | `TEACHER_TOKEN` | Token dosen untuk halaman admin dan extension. **Wajib diganti di server publik.** |
 | `PUBLIC_BASE_URL` | URL frontend mahasiswa, dipakai untuk membuat link pertemuan |
 | `MAX_FILE_SIZE_BYTES` | Ukuran maksimal satu file teks |
+| `WS_HEARTBEAT_MS` | Jeda ping WebSocket, default `30000`. Koneksi yang tidak membalas dalam satu putaran diputus |
 | `DB_PATH` | Lokasi file database, default `data/livecoding.db` |
 
 Backup data cukup dengan menyalin file database.

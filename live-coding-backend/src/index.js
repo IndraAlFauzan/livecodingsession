@@ -254,7 +254,27 @@ const eventsWithPath = new Set([
   'file:request',
 ]);
 
+// Koneksi yang hilang tanpa penutupan rapi -- laptop dosen tidur, WiFi putus,
+// kabel dicabut -- tidak pernah memicu 'close', jadi pertemuan akan terkunci
+// sebagai live selamanya. Ping berkala menutup celah itu: socket yang tidak
+// membalas pong dalam satu putaran diputus, dan 'close' membereskan room-nya.
+function markAlive() {
+  this.isAlive = true;
+}
+
+const heartbeat = setInterval(() => {
+  wss.clients.forEach((ws) => {
+    if (ws.isAlive === false) return ws.terminate();
+    ws.isAlive = false;
+    ws.ping();
+  });
+}, config.wsHeartbeatMs);
+
+wss.on('close', () => clearInterval(heartbeat));
+
 wss.on('connection', (ws) => {
+  ws.isAlive = true;
+  ws.on('pong', markAlive);
   send(ws, { type: 'connected', message: 'Connected to Live Coding backend.' });
 
   ws.on('message', (raw) => {

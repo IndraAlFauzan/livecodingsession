@@ -190,6 +190,7 @@ Kode akses tersimpan di browser, jadi kunjungan berikutnya tidak perlu memasukka
 | `TEACHER_TOKEN` | `change-this-secret-token` | Token dosen untuk halaman admin dan extension |
 | `PUBLIC_BASE_URL` | `http://localhost:5174` | Alamat web mahasiswa, dipakai untuk membuat link pertemuan |
 | `MAX_FILE_SIZE_BYTES` | `524288` | Ukuran maksimal satu file teks (512 KB) |
+| `WS_HEARTBEAT_MS` | `30000` | Jeda ping WebSocket untuk mendeteksi koneksi yang mati diam-diam |
 | `DB_PATH` | `data/livecoding.db` | Lokasi file database |
 
 ### Frontend (`live-coding-frontend/.env`)
@@ -271,6 +272,7 @@ Environment yang wajib diisi (lihat komentar di `.env.production.example`):
 | `TEACHER_TOKEN` | runtime, rahasia | hasil `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
 | `PUBLIC_BASE_URL` | runtime | `https://live.devrisetiaf.cloud` |
 | `MAX_FILE_SIZE_BYTES` | runtime, opsional | `524288` |
+| `WS_HEARTBEAT_MS` | runtime, opsional | `30000` |
 | `VITE_WS_URL` | build-time | `wss://api-live.devrisetiaf.cloud` |
 | `VITE_API_URL` | build-time | `https://api-live.devrisetiaf.cloud` |
 

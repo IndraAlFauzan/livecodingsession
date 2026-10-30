@@ -6,6 +6,7 @@ const config = {
   teacherToken: process.env.TEACHER_TOKEN || 'change-this-secret-token',
   publicBaseUrl: (process.env.PUBLIC_BASE_URL || 'http://localhost:5174').replace(/\/$/, ''),
   maxFileSizeBytes: Number(process.env.MAX_FILE_SIZE_BYTES || 524288),
+  wsHeartbeatMs: Number(process.env.WS_HEARTBEAT_MS || 30000),
   dbPath: path.resolve(process.env.DB_PATH || path.join(__dirname, '..', 'data', 'livecoding.db')),
 };
 

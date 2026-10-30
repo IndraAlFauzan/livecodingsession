@@ -1,20 +1,28 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import AccessGate from "../components/AccessGate.jsx";
-import Breadcrumb from "../components/Breadcrumb.jsx";
-import PageShell from "../components/PageShell.jsx";
-import StatusStamp from "../components/StatusStamp.jsx";
+import MeetingCard from "../components/admin/MeetingCard.jsx";
+import { Button, Card, EmptyState, Tabs } from "../components/ui/index.js";
 import { formatDateTime, studentApi } from "../lib/api.js";
 import { getCourseAccess, storage } from "../lib/storage.js";
+import Copyright from "../utils/copyright.jsx";
 
 const REFRESH_MS = 15000;
 
+const FILTERS = [
+  { label: "Semua", match: () => true },
+  { label: "Live", match: (status) => status === "live" },
+  { label: "Selesai", match: (status) => status === "finished" },
+];
+
 export default function CoursePage() {
   const { slug } = useParams();
+  const navigate = useNavigate();
   const [access, setAccess] = useState(() => getCourseAccess(slug));
   const [gateMessage, setGateMessage] = useState(null);
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
+  const [filter, setFilter] = useState(0);
 
   const load = useCallback(async () => {
     if (!access) return;
@@ -45,55 +53,90 @@ export default function CoursePage() {
   const courseName = data?.course.name || access.courseName;
   // Terbaru di atas: di akhir semester mahasiswa paling sering mencari pertemuan terakhir.
   const meetings = [...(data?.meetings || [])].sort((a, b) => b.number - a.number);
+  const live = meetings.find((meeting) => meeting.status === "live") || null;
+  const counts = FILTERS.map((item) => meetings.filter((meeting) => item.match(meeting.status)).length);
+  const shown = meetings.filter((meeting) => FILTERS[filter].match(meeting.status));
+
+  const open = (meeting) => navigate(`/mk/${slug}/p/${meeting.id}`);
+
+  function cardFor(meeting) {
+    return (
+      <MeetingCard
+        key={meeting.id}
+        number={meeting.number}
+        status={meeting.status}
+        continuesFrom={meeting.continuesFrom?.number}
+        title={meeting.title}
+        date={meeting.startedAt ? formatDateTime(meeting.startedAt) : undefined}
+        action={
+          meeting.status === "live" ? (
+            <Button variant="violet" icon="radio" onClick={() => open(meeting)}>
+              Ikuti sesi live
+            </Button>
+          ) : (
+            <Button variant="secondary" onClick={() => open(meeting)}>
+              Buka
+            </Button>
+          )
+        }
+      />
+    );
+  }
 
   return (
-    <PageShell label={`Masuk sebagai ${access.studentName}`}>
-      <Breadcrumb items={[{ label: "Beranda", to: "/" }, { label: courseName }]} />
-      <h1 className="page-title">{courseName}</h1>
-
-      {error && (
-        <div className="banner banner-error" role="alert">
-          <span>Daftar pertemuan gagal dimuat: {error}</span>
-          <button className="btn btn-secondary btn-small" onClick={load}>
-            Coba lagi
-          </button>
+    <div className="lc-page lc-page--wide">
+      <div className="lc-page__body">
+        <div className="lc-pagehead">
+          <div className="lc-pagehead__text">
+            <h1 className="lc-h1">{courseName}</h1>
+            <p className="lc-sub">Masuk sebagai {access.studentName}</p>
+          </div>
+          <Button variant="secondary" icon="chevron-left" onClick={() => navigate("/")}>
+            Beranda
+          </Button>
         </div>
-      )}
 
-      {!data && !error && <p className="state-text">Memuat daftar pertemuan...</p>}
+        {error && (
+          <Card className="lc-notice" role="alert">
+            <p>Daftar pertemuan gagal dimuat: {error}</p>
+            <Button variant="secondary" size="sm" onClick={load}>
+              Coba lagi
+            </Button>
+          </Card>
+        )}
 
-      {data && meetings.length === 0 && (
-        <div className="empty-state">
-          <p className="empty-title">Belum ada pertemuan.</p>
-          <p>Pertemuan muncul di sini setelah dosen memulai sesi live. Halaman ini memeriksa ulang setiap 15 detik.</p>
-        </div>
-      )}
+        {!data && !error && <p className="lc-muted">Memuat daftar pertemuan...</p>}
 
-      {meetings.length > 0 && (
-        <ul className="meeting-list" aria-label={`Pertemuan ${courseName}, terbaru di atas`}>
-          {meetings.map((meeting) => {
-            const isLive = meeting.status === "live";
-            const meta = isLive
-              ? "Sedang berlangsung. Buka untuk mengikuti."
-              : [
-                  meeting.startedAt && formatDateTime(meeting.startedAt),
-                  meeting.continuesFrom && `lanjutan pertemuan ${meeting.continuesFrom.number}`,
-                ]
-                  .filter(Boolean)
-                  .join(", ");
-            return (
-              <li key={meeting.id} className={isLive ? "meeting-row is-live" : "meeting-row"}>
-                <Link className="meeting-link" to={`/mk/${slug}/p/${meeting.id}`}>
-                  <span className="meeting-label">Pertemuan {meeting.number}</span>
-                  <span className="meeting-title">{meeting.title || "Tanpa judul"}</span>
-                  {meta && <span className="meeting-meta">{meta}</span>}
-                </Link>
-                <StatusStamp status={meeting.status} />
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </PageShell>
+        {live && cardFor(live)}
+
+        {data && meetings.length === 0 && (
+          <Card>
+            <EmptyState
+              icon="calendar"
+              title="Belum ada pertemuan."
+              text="Pertemuan muncul di sini setelah dosen memulai sesi live. Halaman ini memeriksa ulang setiap 15 detik."
+            />
+          </Card>
+        )}
+
+        {meetings.length > 0 && (
+          <>
+            <Tabs
+              items={FILTERS.map((item, index) => ({ label: item.label, count: counts[index] }))}
+              value={filter}
+              onChange={setFilter}
+            />
+            {shown.length > 0 ? (
+              <div className="lc-cards">{shown.map(cardFor)}</div>
+            ) : (
+              <Card>
+                <EmptyState icon="calendar" title={`Tidak ada pertemuan ${FILTERS[filter].label.toLowerCase()}.`} />
+              </Card>
+            )}
+          </>
+        )}
+      </div>
+      <Copyright />
+    </div>
   );
 }

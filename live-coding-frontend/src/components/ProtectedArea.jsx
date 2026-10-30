@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import ScreenshotShield from "./session/ScreenshotShield.jsx";
 
 const BLOCKED_SHORTCUTS = new Set(["c", "x", "a", "s", "p", "u"]);
 
@@ -6,11 +7,15 @@ function escapeXml(text) {
   return text.replace(/[&<>"']/g, (char) => `&#${char.charCodeAt(0)};`);
 }
 
+// var() tidak berlaku di dalam data: URI, jadi nilai token dibaca saat render.
 function watermarkImage(text) {
+  const root = getComputedStyle(document.documentElement);
+  const fill = root.getPropertyValue("--on-code").trim() || "#ffffff";
+  const font = root.getPropertyValue("--font-sans").trim() || "sans-serif";
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" width="360" height="220">` +
     `<text x="180" y="110" text-anchor="middle" transform="rotate(-24 180 110)" ` +
-    `fill="#ffffff" fill-opacity="0.09" font-family="sans-serif" font-size="15">${escapeXml(text)}</text></svg>`;
+    `fill="${fill}" fill-opacity="0.09" font-family="${escapeXml(font)}" font-size="15">${escapeXml(text)}</text></svg>`;
   return `url("data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}")`;
 }
 
@@ -66,15 +71,12 @@ export default function ProtectedArea({ watermark, children }) {
   const backgroundImage = useMemo(() => watermarkImage(watermark), [watermark]);
 
   return (
-    <div className="protected-area">
-      <div className={hidden ? "protected-content is-hidden" : "protected-content"}>{children}</div>
-      <div className="watermark" style={{ backgroundImage }} aria-hidden="true" />
+    <div className="lc-protected">
+      <div className={hidden ? "lc-protected__content is-hidden" : "lc-protected__content"}>{children}</div>
+      <div className="lc-protected__watermark" style={{ backgroundImage }} aria-hidden="true" />
       {hidden && (
-        <div className="screenshot-shield" role="alert">
-          <p>Kode disembunyikan karena terdeteksi shortcut screenshot.</p>
-          <button className="btn btn-on-dark" onClick={() => setHidden(false)}>
-            Tampilkan lagi
-          </button>
+        <div className="lc-protected__shield">
+          <ScreenshotShield onReveal={() => setHidden(false)} />
         </div>
       )}
     </div>

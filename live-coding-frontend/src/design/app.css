@@ -1,0 +1,489 @@
+/* Lapisan aplikasi di atas design system: tata letak halaman, breakpoint, dan sambungan Monaco.
+   Semua nilai dari tokens.css; angka langsung hanya untuk geometri kecil dan breakpoint. */
+
+/* ---------- kerangka halaman ---------- */
+
+#root {
+  min-height: 100vh;
+}
+
+.lc-page {
+  min-height: 100vh;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.lc-page--center {
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6) var(--space-4);
+}
+
+.lc-page--wide {
+  padding: var(--space-6);
+}
+
+.lc-page__body {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.lc-copyright {
+  margin: 0;
+  padding-top: var(--space-2);
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.lc-app .lc-copyright {
+  text-align: left;
+}
+
+/* ---------- sidebar sebagai drawer ---------- */
+
+.lc-app__scrim {
+  display: none;
+}
+
+.lc-header__menu {
+  display: none;
+}
+
+.lc-header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.lc-sidebar__note {
+  margin: 0;
+  padding: 0 var(--space-3);
+  font-size: 13px;
+}
+
+@media (max-width: 1023px) {
+  .lc-app {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .lc-app__aside {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 30;
+    padding: var(--space-4);
+    transform: translateX(-110%);
+    transition: transform var(--ease);
+  }
+
+  .lc-app__aside .lc-sidebar {
+    height: 100%;
+    overflow: auto;
+  }
+
+  .lc-app.is-drawer-open .lc-app__aside {
+    transform: translateX(0);
+  }
+
+  .lc-app.is-drawer-open .lc-app__scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    background: var(--scrim);
+  }
+
+  .lc-header__menu {
+    display: inline-flex;
+  }
+}
+
+/* ---------- layar sesi ---------- */
+
+.lc-session {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: var(--space-4);
+  flex: 1;
+  min-height: 0;
+}
+
+.lc-session__tree {
+  min-height: 0;
+  overflow: auto;
+}
+
+.lc-session__files {
+  display: none;
+}
+
+.lc-session__scrim {
+  display: none;
+}
+
+/* Halaman sesi mengisi layar: panel kode yang mendapat sisa ruangnya. */
+.lc-session-page {
+  height: 100vh;
+  overflow: hidden;
+}
+
+.lc-session-page .lc-protected {
+  flex: 1;
+  min-height: 0;
+}
+
+.lc-header__meta {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.lc-sessionbar__copyright {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.lc-notice {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-4) var(--space-5);
+}
+
+.lc-notice p {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 14px;
+}
+
+@media (max-width: 899px) {
+  .lc-session {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .lc-session__files {
+    display: inline-flex;
+    justify-self: start;
+  }
+
+  .lc-session__tree {
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: 30;
+    max-height: 70vh;
+    padding: var(--space-4);
+    transform: translateY(110%);
+    transition: transform var(--ease);
+  }
+
+  .lc-session.is-sheet-open .lc-session__tree {
+    transform: translateY(0);
+  }
+
+  .lc-session.is-sheet-open .lc-session__scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    background: var(--scrim);
+  }
+}
+
+/* ---------- panel kode: wadah Monaco ---------- */
+
+.lc-codepanel__editor {
+  flex: 1;
+  min-height: 0;
+  background: var(--code-bg);
+}
+
+.lc-codepanel__empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  color: var(--on-code-muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+.lc-codepanel__asset {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-6);
+  color: var(--on-code-muted);
+  text-align: center;
+}
+
+.lc-codepanel__asset strong {
+  color: var(--on-code);
+  font-size: 16px;
+}
+
+.lc-codepanel__asset code {
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+/* Sorotan dosen: sama persis dengan .lc-ln.is-hl di bundle.css. */
+.lcc-highlight {
+  background: var(--code-highlight);
+}
+
+.lcc-highlight-margin {
+  box-shadow: inset 3px 0 0 var(--code-ruler);
+}
+
+/* ---------- perlindungan kode ---------- */
+
+.lc-protected {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.lc-protected__content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.lc-protected__content.is-hidden {
+  visibility: hidden;
+}
+
+.lc-protected__watermark {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  background-repeat: repeat;
+}
+
+.lc-protected__shield {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.lc-protected__shield .lc-shield {
+  flex: 1;
+}
+
+@media print {
+  body.no-print * {
+    display: none !important;
+  }
+
+  body.no-print::after {
+    content: "Halaman ini tidak dapat dicetak.";
+  }
+}
+
+/* Di bundle.css backdrop hanya blok contoh; di aplikasi ia harus menutupi layar. */
+.lc-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  border-radius: 0;
+  overflow: auto;
+}
+
+/* ---------- halaman mata kuliah ---------- */
+
+.lc-page__body > .lc-tabs {
+  align-self: flex-start;
+}
+
+/* ---------- beranda mahasiswa ---------- */
+
+.lc-home {
+  display: grid;
+  grid-template-columns: 420px minmax(0, 1fr);
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.lc-course__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+@media (max-width: 899px) {
+  .lc-home {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-5);
+  }
+
+  .lc-joinbox {
+    width: 100%;
+  }
+}
+
+/* Link yang tampil sebagai tombol. */
+a.lc-btn {
+  text-decoration: none;
+}
+
+/* ---------- potongan kecil ---------- */
+
+.lc-inline-form {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.lc-inline-form .lc-field {
+  flex: 1;
+  min-width: 180px;
+}
+
+.lc-danger-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.lc-table__wrap {
+  position: relative; /* menahan .lc-sr di dalam kartu, bukan melebarkan halaman */
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.lc-cards {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+}
+
+@media (max-width: 1023px) {
+  .lc-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+.lc-live__note {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.lc-meeting__action {
+  align-self: flex-start;
+}
+
+.lc-table__rename {
+  display: block;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 700;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+.lc-table__rename:hover {
+  color: var(--violet-ink);
+}
+
+.lc-table__input {
+  height: 36px;
+  padding: 0 var(--space-3);
+}
+
+.lc-table__input input {
+  font-size: 14px;
+}
+
+.lc-joinbox {
+  width: min(420px, 100%);
+}
+
+.lc-sidebar__add {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3) var(--space-3);
+}
+
+/* Field sudah punya cincin fokusnya sendiri di .lc-input:focus-within. */
+.lc-input input:focus-visible {
+  box-shadow: none;
+}
+
+/* ---------- layar sempit ---------- */
+
+@media (max-width: 719px) {
+  .lc-page,
+  .lc-app {
+    padding: var(--space-3);
+  }
+
+  .lc-header {
+    flex-wrap: wrap;
+  }
+
+  .lc-header__crumbs {
+    flex-basis: 100%;
+    order: -1;
+  }
+
+  .lc-card__head {
+    flex-wrap: wrap;
+  }
+
+  .lc-card__actions {
+    width: 100%;
+    min-width: 0;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .lc-tabs {
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+  }
+
+  .lc-tab {
+    white-space: nowrap;
+  }
+
+  /* Tabel pertemuan menggulir di dalam kartunya, bukan menggeser halaman. */
+  .lc-table {
+    min-width: 560px;
+  }
+
+  .lc-live__clock {
+    font-size: 40px;
+    line-height: 40px;
+  }
+}

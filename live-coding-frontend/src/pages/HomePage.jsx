@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import AccessForm from "../components/AccessForm.jsx";
-import PageShell from "../components/PageShell.jsx";
-import StatusStamp from "../components/StatusStamp.jsx";
+import { useNavigate } from "react-router-dom";
+import CourseCard from "../components/student/CourseCard.jsx";
+import JoinCard from "../components/student/JoinCard.jsx";
 import { studentApi } from "../lib/api.js";
 import { storage } from "../lib/storage.js";
+import Copyright from "../utils/copyright.jsx";
 
 const REFRESH_MS = 30000;
 
@@ -12,7 +12,8 @@ function meetingName(meeting) {
   return meeting.title ? `Pertemuan ${meeting.number}, ${meeting.title}` : `Pertemuan ${meeting.number}`;
 }
 
-function CourseRow({ slug, course, onForget }) {
+function SavedCourse({ slug, course, onForget }) {
+  const navigate = useNavigate();
   const [state, setState] = useState({ kind: "loading" });
 
   const load = useCallback(async () => {
@@ -43,27 +44,15 @@ function CourseRow({ slug, course, onForget }) {
   else detail = "Belum ada pertemuan.";
 
   return (
-    <li className={live ? "class-row is-live" : "class-row"}>
-      <div className="class-row-main">
-        <Link className="class-row-name" to={`/mk/${slug}`}>
-          {course.name}
-        </Link>
-        <p className="class-row-detail">
-          {live && <StatusStamp status="live" />}
-          <span>{detail}</span>
-        </p>
-      </div>
-      <div className="class-row-actions">
-        {live && (
-          <Link className="btn btn-accent btn-small" to={`/mk/${slug}/p/${live.id}`}>
-            Ikuti sesi live
-          </Link>
-        )}
-        <button className="btn btn-quiet btn-small" onClick={() => onForget(slug)}>
-          Hapus dari daftar
-        </button>
-      </div>
-    </li>
+    <CourseCard
+      name={course.name}
+      detail={detail}
+      live={Boolean(live)}
+      meetingCount={state.kind === "ready" ? meetings.length : null}
+      onOpen={() => navigate(`/mk/${slug}`)}
+      onJoinLive={() => navigate(`/mk/${slug}/p/${live.id}`)}
+      onForget={() => onForget(slug)}
+    />
   );
 }
 
@@ -82,36 +71,39 @@ export default function HomePage() {
 
   if (entries.length === 0) {
     return (
-      <PageShell width="narrow">
-        <h1 className="page-title">Masuk ke kelas</h1>
-        <p className="lead">Isi nama lengkap dan kode akses mata kuliah yang dibagikan dosen pengampu.</p>
-        <section className="panel" aria-label="Form masuk kelas">
-          <AccessForm onSuccess={openCourse} />
-        </section>
-        <p className="page-note">
+      <div className="lc-page lc-page--center">
+        <JoinCard heading="h1" onSuccess={openCourse} />
+        <p className="lc-sub lc-joinbox">
           Kode di halaman kelas hanya bisa dibaca, dan nama kamu tampil samar di atasnya selama kamu melihat.
         </p>
-      </PageShell>
+        <Copyright />
+      </div>
     );
   }
 
   return (
-    <PageShell width="narrow" label={studentName ? `Masuk sebagai ${studentName}` : undefined}>
-      <h1 className="page-title">Kelas kamu</h1>
-      <ul className="class-list">
-        {entries.map(([slug, course]) => (
-          <CourseRow key={slug} slug={slug} course={course} onForget={forget} />
-        ))}
-      </ul>
+    <div className="lc-page lc-page--wide">
+      <div className="lc-page__body lc-home">
+        <JoinCard onSuccess={openCourse} />
 
-      <section className="add-course" aria-labelledby="add-course-title">
-        <h2 className="section-title" id="add-course-title">
-          Tambah mata kuliah lain
-        </h2>
-        <section className="panel">
-          <AccessForm onSuccess={openCourse} />
-        </section>
-      </section>
-    </PageShell>
+        <div className="lc-stack">
+          <div className="lc-pagehead">
+            <div className="lc-pagehead__text">
+              <h1 className="lc-h1">Mata kuliahmu</h1>
+              <p className="lc-sub">
+                {studentName ? `Masuk sebagai ${studentName}.` : "Yang pernah kamu buka di perangkat ini."}
+              </p>
+            </div>
+          </div>
+
+          <div className="lc-cards">
+            {entries.map(([slug, course]) => (
+              <SavedCourse key={slug} slug={slug} course={course} onForget={forget} />
+            ))}
+          </div>
+        </div>
+      </div>
+      <Copyright />
+    </div>
   );
 }

@@ -1,11 +1,30 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import PageShell from "../components/PageShell.jsx";
-import StatusStamp from "../components/StatusStamp.jsx";
+import AccessCodeCard from "../components/admin/AccessCodeCard.jsx";
+import LiveSessionCard from "../components/admin/LiveSessionCard.jsx";
+import MeetingCard from "../components/admin/MeetingCard.jsx";
+import MeetingTable from "../components/admin/MeetingTable.jsx";
+import AppHeader from "../components/layout/AppHeader.jsx";
+import AppLayout from "../components/layout/AppLayout.jsx";
+import Sidebar from "../components/layout/Sidebar.jsx";
+import { Button, Card, Dialog, EmptyState, IconButton, Tabs, TextField } from "../components/ui/index.js";
 import { adminApi, formatDateTime } from "../lib/api.js";
 import { storage } from "../lib/storage.js";
+import Copyright from "../utils/copyright.jsx";
 
 const MEETING_REFRESH_MS = 10000;
+
+const FILTERS = [
+  { label: "Semua", match: () => true },
+  { label: "Live", match: (status) => status === "live" },
+  { label: "Selesai", match: (status) => status === "finished" },
+  { label: "Belum dimulai", match: (status) => status === "draft" },
+];
+
+// Pertemuan yang ditandai live tapi dosennya tidak terhubung sudah selesai.
+function derivedStatus(meeting) {
+  return meeting.status === "live" && !meeting.teacherConnected ? "finished" : meeting.status;
+}
 
 export default function AdminPage() {
   const [token, setToken] = useState(() => storage.getAdminToken());
@@ -49,42 +68,40 @@ function AdminLogin({ onLogin }) {
   }
 
   return (
-    <PageShell width="narrow" label="Admin dosen">
-      <h1 className="page-title">Masuk sebagai dosen</h1>
-      <p className="lead">Gunakan teacher token yang sama dengan setting VS Code kamu.</p>
-      <section className="panel">
-        <form className="form" onSubmit={handleSubmit}>
-          <label className="field">
-            <span className="field-label">Teacher token</span>
-            <input
-              type="password"
-              className="input-code"
-              value={value}
-              onChange={(event) => setValue(event.target.value)}
-              autoComplete="current-password"
-              autoFocus
-            />
-          </label>
-          {error && (
-            <p className="form-error" role="alert">
-              {error}
-            </p>
-          )}
-          <button className="btn btn-primary btn-block" type="submit" disabled={submitting || !value.trim()}>
-            {submitting ? "Memeriksa token..." : "Masuk ke admin"}
-          </button>
-        </form>
-      </section>
-    </PageShell>
+    <div className="lc-page lc-page--center">
+      <form className="lc-join lc-joinbox" onSubmit={handleSubmit}>
+        <div>
+          <h1 className="lc-join__title">Masuk sebagai dosen</h1>
+          <p className="lc-join__text">Gunakan teacher token yang sama dengan setting VS Code kamu.</p>
+        </div>
+        <TextField
+          label="Teacher token"
+          type="password"
+          mono
+          icon="key"
+          value={value}
+          onChange={(event) => setValue(event.target.value)}
+          autoComplete="current-password"
+          autoFocus
+          error={error}
+        />
+        <Button size="lg" block type="submit" disabled={submitting || !value.trim()}>
+          {submitting ? "Memeriksa token..." : "Masuk ke admin"}
+        </Button>
+      </form>
+      <Copyright />
+    </div>
   );
 }
 
 function AdminDashboard({ api, onLogout }) {
   const [courses, setCourses] = useState(null);
+  const [liveCourseIds, setLiveCourseIds] = useState(() => new Set());
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedId = Number(searchParams.get("mk")) || null;
   const setSelectedId = useCallback((id) => setSearchParams({ mk: String(id) }, { replace: true }), [setSearchParams]);
   const [newCourseName, setNewCourseName] = useState("");
+  const [addingCourse, setAddingCourse] = useState(false);
   const [error, setError] = useState(null);
 
   const handleError = useCallback(
@@ -97,7 +114,20 @@ function AdminDashboard({ api, onLogout }) {
 
   const loadCourses = useCallback(async () => {
     try {
-      setCourses((await api.courses()).courses);
+      const { courses: list } = await api.courses();
+      setCourses(list);
+      // Daftar mata kuliah tidak memuat status live, jadi badge Live di sidebar perlu pertemuannya.
+      const flags = await Promise.all(
+        list.map(async (course) => {
+          try {
+            const { meetings } = await api.meetings(course.id);
+            return meetings.some((meeting) => meeting.status === "live" && meeting.teacherConnected) ? course.id : null;
+          } catch {
+            return null;
+          }
+        }),
+      );
+      setLiveCourseIds(new Set(flags.filter((id) => id !== null)));
     } catch (err) {
       handleError(err);
     }
@@ -105,6 +135,8 @@ function AdminDashboard({ api, onLogout }) {
 
   useEffect(() => {
     loadCourses();
+    const timer = setInterval(loadCourses, MEETING_REFRESH_MS);
+    return () => clearInterval(timer);
   }, [loadCourses]);
 
   async function createCourse(event) {
@@ -113,6 +145,7 @@ function AdminDashboard({ api, onLogout }) {
     try {
       const { course } = await api.createCourse(newCourseName.trim());
       setNewCourseName("");
+      setAddingCourse(false);
       await loadCourses();
       setSelectedId(course.id);
     } catch (err) {
@@ -123,89 +156,93 @@ function AdminDashboard({ api, onLogout }) {
   const list = courses || [];
   const selected = list.find((course) => course.id === selectedId) || list[0] || null;
 
+  const sidebar = (
+    <Sidebar
+      logoSrc="/live-coding-mark.svg"
+      workspace="Ruang dosen"
+      menu={[{ icon: "book", label: "Mata kuliah", count: list.length, current: true }]}
+      courses={list.map((course) => ({ ...course, live: liveCourseIds.has(course.id) }))}
+      currentCourseId={selected?.id}
+      onSelectCourse={setSelectedId}
+      onAddCourse={() => setAddingCourse((value) => !value)}>
+      {addingCourse && (
+        <form className="lc-sidebar__add" onSubmit={createCourse}>
+          <TextField
+            label="Mata kuliah baru"
+            value={newCourseName}
+            onChange={(event) => setNewCourseName(event.target.value)}
+            placeholder="Nama mata kuliah"
+            maxLength={100}
+            autoFocus
+          />
+          <Button size="sm" type="submit" disabled={!newCourseName.trim()}>
+            Tambah mata kuliah
+          </Button>
+        </form>
+      )}
+    </Sidebar>
+  );
+
   return (
-    <PageShell
-      width="wide"
-      label="Admin dosen"
-      actions={
-        <button className="btn btn-secondary btn-small" onClick={onLogout}>
-          Keluar
-        </button>
-      }>
+    <AppLayout sidebar={sidebar}>
       {error && (
-        <div className="banner banner-error" role="alert">
-          <span>{error}</span>
-          <button className="btn btn-secondary btn-small" onClick={() => setError(null)}>
+        <Card className="lc-notice" role="alert">
+          <p>{error}</p>
+          <Button variant="secondary" size="sm" onClick={() => setError(null)}>
             Tutup
-          </button>
-        </div>
+          </Button>
+        </Card>
       )}
 
-      <div className="admin-grid">
-        <aside className="course-nav" aria-labelledby="course-nav-title">
-          <h2 className="section-title" id="course-nav-title">
-            Mata kuliah
-          </h2>
-
-          {courses === null && !error && <p className="state-text">Memuat mata kuliah...</p>}
-          {courses?.length === 0 && <p className="state-text">Belum ada. Tambahkan mata kuliah pertama di bawah.</p>}
-
-          {list.length > 0 && (
-            <ul className="course-list">
-              {list.map((course) => (
-                <li key={course.id}>
-                  <button
-                    className="course-item"
-                    aria-current={course.id === selected?.id ? "true" : undefined}
-                    onClick={() => setSelectedId(course.id)}>
-                    <span className="course-item-name">{course.name}</span>
-                    <span className="course-item-meta">{course.meetingCount} pertemuan</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <form className="stack-form" onSubmit={createCourse}>
-            <label className="field">
-              <span className="field-label">Mata kuliah baru</span>
-              <input
-                value={newCourseName}
-                onChange={(event) => setNewCourseName(event.target.value)}
-                placeholder="Nama mata kuliah"
-                maxLength={100}
-              />
-            </label>
-            <button className="btn btn-secondary" type="submit" disabled={!newCourseName.trim()}>
-              Tambah mata kuliah
-            </button>
-          </form>
-        </aside>
-
-        {selected ? (
-          <CourseDetail key={selected.id} api={api} course={selected} onError={handleError} onCourseChanged={loadCourses} />
-        ) : (
-          courses?.length === 0 && (
-            <section className="empty-state">
-              <p className="empty-title">Mulai dari mata kuliah.</p>
-              <p>
-                Setiap mata kuliah mendapat kode akses sendiri. Pertemuan bisa dibuat di sini atau langsung dari VS Code
-                saat memulai sesi.
-              </p>
-            </section>
-          )
-        )}
-      </div>
-    </PageShell>
+      {selected ? (
+        <CourseDetail
+          key={selected.id}
+          api={api}
+          course={selected}
+          onError={handleError}
+          onCourseChanged={loadCourses}
+          onLogout={onLogout}
+        />
+      ) : (
+        <>
+          <AppHeader
+            crumb="Mata kuliah"
+            title="Admin dosen"
+            actions={<IconButton icon="logout" label="Keluar dari admin" onClick={onLogout} />}
+          />
+          <Card>
+            <EmptyState
+              icon="book"
+              title={courses === null ? "Memuat mata kuliah..." : "Mulai dari mata kuliah."}
+              text={
+                courses === null
+                  ? undefined
+                  : "Setiap mata kuliah mendapat kode akses sendiri. Pertemuan bisa dibuat di sini atau langsung dari VS Code saat memulai sesi."
+              }
+              action={
+                courses?.length === 0 ? (
+                  <Button icon="plus" onClick={() => setAddingCourse(true)}>
+                    Mata kuliah baru
+                  </Button>
+                ) : null
+              }
+            />
+          </Card>
+        </>
+      )}
+      <Copyright />
+    </AppLayout>
   );
 }
 
-function CourseDetail({ api, course, onError, onCourseChanged }) {
+function CourseDetail({ api, course, onError, onCourseChanged, onLogout }) {
   const [meetings, setMeetings] = useState(null);
   const [editingName, setEditingName] = useState(null);
   const [confirm, setConfirm] = useState(null);
   const [newMeetingTitle, setNewMeetingTitle] = useState("");
+  const [addingMeeting, setAddingMeeting] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [filter, setFilter] = useState(0);
 
   const loadMeetings = useCallback(async () => {
     try {
@@ -257,6 +294,7 @@ function CourseDetail({ api, course, onError, onCourseChanged }) {
       async () => {
         await api.createMeeting(course.id, title ? { title } : {});
         setNewMeetingTitle("");
+        setAddingMeeting(false);
       },
       { reloadCourses: true },
     );
@@ -269,248 +307,199 @@ function CourseDetail({ api, course, onError, onCourseChanged }) {
     }
   }
 
+  const all = [...(meetings || [])].sort((a, b) => b.number - a.number);
+  const liveMeeting = all.find((meeting) => derivedStatus(meeting) === "live") || null;
+  const featured = liveMeeting || all[0] || null;
+  const counts = FILTERS.map((item) => all.filter((meeting) => item.match(derivedStatus(meeting))).length);
+  const shown = all.filter((meeting) => FILTERS[filter].match(derivedStatus(meeting)));
+  const deletingMeeting = typeof confirm === "string" && confirm.startsWith("delete:")
+    ? all.find((meeting) => String(meeting.id) === confirm.slice(7))
+    : null;
+
   return (
-    <section className="course-detail" aria-labelledby="course-title">
-      {editingName === null ? (
-        <div className="detail-heading">
-          <h1 className="page-title" id="course-title">
-            {course.name}
-          </h1>
-          <button className="btn btn-quiet btn-small" onClick={() => setEditingName(course.name)}>
-            Ubah nama
-          </button>
-        </div>
-      ) : (
-        <form className="inline-form detail-heading" onSubmit={saveName}>
-          <label className="visually-hidden" htmlFor="course-name-input">
-            Nama mata kuliah
-          </label>
-          <input
-            id="course-name-input"
-            className="input-title"
-            value={editingName}
-            onChange={(event) => setEditingName(event.target.value)}
-            maxLength={100}
-            autoFocus
-          />
-          <button className="btn btn-primary" type="submit" disabled={!editingName.trim()}>
-            Simpan
-          </button>
-          <button className="btn btn-quiet" type="button" onClick={() => setEditingName(null)}>
-            Batal
-          </button>
-        </form>
+    <>
+      <AppHeader
+        crumb="Mata kuliah"
+        title={course.name}
+        live={Boolean(liveMeeting)}
+        actions={
+          <>
+            <Button variant="secondary" size="sm" onClick={() => setEditingName(course.name)}>
+              Ubah nama
+            </Button>
+            <IconButton icon="logout" label="Keluar dari admin" onClick={onLogout} />
+          </>
+        }
+      />
+
+      {editingName !== null && (
+        <Card title="Ubah nama mata kuliah" icon="book">
+          <form className="lc-inline-form" onSubmit={saveName}>
+            <TextField
+              label="Nama mata kuliah"
+              value={editingName}
+              onChange={(event) => setEditingName(event.target.value)}
+              maxLength={100}
+              autoFocus
+            />
+            <Button type="submit" disabled={!editingName.trim()}>
+              Simpan
+            </Button>
+            <Button variant="ghost" onClick={() => setEditingName(null)}>
+              Batal
+            </Button>
+          </form>
+        </Card>
       )}
 
-      <div className="code-panel">
-        <div className="code-panel-main">
-          <span className="field-label" id="access-code-label">
-            Kode akses mahasiswa
-          </span>
-          <div className="code-panel-value">
-            <code aria-labelledby="access-code-label" className={course.codeActive ? "" : "is-inactive"}>
-              {course.accessCode}
-            </code>
-            <StatusStamp status={course.codeActive ? "active" : "inactive"} />
-          </div>
-          <p className="field-hint">
-            {course.codeActive
-              ? "Bagikan hanya ke kelas mata kuliah ini."
-              : "Mahasiswa tidak bisa masuk sampai kode diaktifkan lagi."}
-          </p>
-        </div>
+      <div className="lc-grid" style={{ gridTemplateColumns: "1.35fr 1fr 1fr" }}>
+        {featured ? (
+          <MeetingCard
+            number={featured.number}
+            status={derivedStatus(featured)}
+            continuesFrom={featured.continuesFrom?.number}
+            title={featured.title}
+            date={featured.startedAt ? formatDateTime(featured.startedAt) : undefined}
+            action={
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={featured.status === "draft" || !featured.visible}
+                title={
+                  featured.status === "draft"
+                    ? "Belum pernah dimulai"
+                    : !featured.visible
+                      ? "Tampilkan dulu untuk membuka"
+                      : undefined
+                }
+                onClick={() => openMeeting(featured)}>
+                Buka pertemuan
+              </Button>
+            }
+          />
+        ) : (
+          <Card>
+            <EmptyState
+              icon="calendar"
+              title={meetings === null ? "Memuat pertemuan..." : "Belum ada pertemuan."}
+              text={meetings === null ? undefined : "Tambahkan di kartu Pertemuan, atau mulai sesi dari VS Code."}
+            />
+          </Card>
+        )}
 
-        <div className="button-row">
-          <button className="btn btn-primary btn-small" onClick={copyCode}>
-            {copied ? "Kode tersalin" : "Salin kode"}
-          </button>
-          <button
-            className="btn btn-secondary btn-small"
-            onClick={() => run(() => api.updateCourse(course.id, { codeActive: !course.codeActive }), { reloadCourses: true })}>
-            {course.codeActive ? "Nonaktifkan" : "Aktifkan"}
-          </button>
-          {confirm === "regenerate" ? (
-            <div className="confirm" role="group" aria-label="Konfirmasi kode baru">
-              <span className="confirm-text">Kode lama langsung tidak berlaku.</span>
-              <button
-                className="btn btn-danger btn-small"
-                onClick={() => run(() => api.regenerateCode(course.id), { reloadCourses: true })}>
-                Ya, buat kode baru
-              </button>
-              <button className="btn btn-quiet btn-small" onClick={() => setConfirm(null)}>
-                Batal
-              </button>
-            </div>
-          ) : (
-            <button className="btn btn-secondary btn-small" onClick={() => setConfirm("regenerate")}>
-              Buat kode baru
-            </button>
-          )}
-        </div>
+        <LiveSessionCard
+          live={Boolean(liveMeeting)}
+          number={liveMeeting?.number}
+          title={liveMeeting?.title}
+          startedAt={liveMeeting?.startedAt}
+        />
+
+        <AccessCodeCard
+          code={course.accessCode}
+          active={course.codeActive}
+          copied={copied}
+          onCopy={copyCode}
+          onToggle={() => run(() => api.updateCourse(course.id, { codeActive: !course.codeActive }), { reloadCourses: true })}
+          onRegenerate={() => setConfirm("regenerate")}
+        />
       </div>
 
-      <section aria-labelledby="meetings-title">
-        <h2 className="section-title" id="meetings-title">
-          Pertemuan
-        </h2>
-
-        <form className="inline-form" onSubmit={createMeeting}>
-          <label className="visually-hidden" htmlFor="meeting-title-input">
-            Judul pertemuan baru
-          </label>
-          <input
-            id="meeting-title-input"
-            value={newMeetingTitle}
-            onChange={(event) => setNewMeetingTitle(event.target.value)}
-            placeholder="Judul pertemuan berikutnya (opsional)"
-            maxLength={200}
-          />
-          <button className="btn btn-secondary" type="submit">
-            Tambah pertemuan
-          </button>
-        </form>
-
-        {meetings === null && <p className="state-text">Memuat pertemuan...</p>}
-
-        {meetings?.length === 0 && (
-          <div className="empty-state">
-            <p className="empty-title">Belum ada pertemuan.</p>
-            <p>Tambahkan di atas, atau mulai sesi dari VS Code dan pilih "Pertemuan baru".</p>
-          </div>
-        )}
-
-        {meetings?.length > 0 && (
-          <ul className="admin-meetings" aria-label="Pertemuan, terbaru di atas">
-            {[...meetings]
-              .sort((a, b) => b.number - a.number)
-              .map((meeting) => (
-                <MeetingRow
-                  key={meeting.id}
-                  meeting={meeting}
-                  confirming={confirm === `delete:${meeting.id}`}
-                  onRename={(title) => run(() => api.updateMeeting(meeting.id, { title }))}
-                  onToggleVisible={() => run(() => api.updateMeeting(meeting.id, { visible: !meeting.visible }))}
-                  onAskDelete={() => setConfirm(`delete:${meeting.id}`)}
-                  onCancelDelete={() => setConfirm(null)}
-                  onDelete={() => run(() => api.deleteMeeting(meeting.id), { reloadCourses: true })}
-                  onOpen={() => openMeeting(meeting)}
-                />
-              ))}
-          </ul>
-        )}
-      </section>
-
-      <section className="danger-zone" aria-labelledby="danger-title">
-        <h2 className="section-title" id="danger-title">
-          Hapus mata kuliah
-        </h2>
-        {confirm === "delete-course" ? (
-          <div className="confirm" role="group" aria-label="Konfirmasi hapus mata kuliah">
-            <span className="confirm-text">
-              {course.name} beserta {meetings?.length ?? 0} pertemuan dan semua kodenya akan hilang permanen.
-            </span>
-            <button className="btn btn-danger btn-small" onClick={() => run(() => api.deleteCourse(course.id), { reloadCourses: true })}>
-              Ya, hapus permanen
-            </button>
-            <button className="btn btn-quiet btn-small" onClick={() => setConfirm(null)}>
-              Batal
-            </button>
-          </div>
-        ) : (
+      <Card
+        title="Pertemuan"
+        icon="calendar"
+        actions={
           <>
-            <p className="field-hint">Semua pertemuan dan kode yang tersimpan ikut terhapus.</p>
-            <button className="btn btn-danger-outline btn-small" onClick={() => setConfirm("delete-course")}>
-              Hapus mata kuliah ini
-            </button>
+            <Tabs
+              items={FILTERS.map((item, index) => ({ label: item.label, count: counts[index] }))}
+              value={filter}
+              onChange={setFilter}
+            />
+            <Button variant="secondary" size="sm" icon="plus" onClick={() => setAddingMeeting((value) => !value)}>
+              Tambah pertemuan
+            </Button>
           </>
-        )}
-      </section>
-    </section>
-  );
-}
-
-function MeetingRow({ meeting, confirming, onRename, onToggleVisible, onAskDelete, onCancelDelete, onDelete, onOpen }) {
-  const [editing, setEditing] = useState(null);
-  const status = meeting.status === "live" && !meeting.teacherConnected ? "finished" : meeting.status;
-  const openDisabledReason =
-    meeting.status === "draft" ? "Belum pernah dimulai" : !meeting.visible ? "Tampilkan dulu untuk membuka" : undefined;
-  const meta = [
-    meeting.startedAt && formatDateTime(meeting.startedAt),
-    meeting.continuesFrom && `lanjutan pertemuan ${meeting.continuesFrom.number}`,
-  ].filter(Boolean);
-
-  return (
-    <li className={meeting.visible ? "admin-meeting" : "admin-meeting is-hidden"}>
-      <div className="admin-meeting-main">
-        <span className="meeting-label">
-          Pertemuan {meeting.number}
-          {!meeting.visible && " (disembunyikan)"}
-        </span>
-        {editing === null ? (
-          <button className="title-button" onClick={() => setEditing(meeting.title)}>
-            {meeting.title || <span className="placeholder-text">Tanpa judul</span>}
-            <span className="visually-hidden">, ubah judul</span>
-          </button>
-        ) : (
-          <form
-            className="inline-form"
-            onSubmit={(event) => {
-              event.preventDefault();
-              onRename(editing.trim());
-              setEditing(null);
-            }}>
-            <label className="visually-hidden" htmlFor={`title-${meeting.id}`}>
-              Judul pertemuan {meeting.number}
-            </label>
-            <input
-              id={`title-${meeting.id}`}
-              value={editing}
-              onChange={(event) => setEditing(event.target.value)}
+        }>
+        {addingMeeting && (
+          <form className="lc-inline-form" onSubmit={createMeeting}>
+            <TextField
+              label="Judul pertemuan baru"
+              value={newMeetingTitle}
+              onChange={(event) => setNewMeetingTitle(event.target.value)}
+              placeholder="Judul pertemuan berikutnya (opsional)"
               maxLength={200}
               autoFocus
             />
-            <button className="btn btn-primary btn-small" type="submit">
-              Simpan
-            </button>
-            <button className="btn btn-quiet btn-small" type="button" onClick={() => setEditing(null)}>
+            <Button type="submit">Tambah pertemuan</Button>
+            <Button variant="ghost" onClick={() => setAddingMeeting(false)}>
               Batal
-            </button>
+            </Button>
           </form>
         )}
-        {meta.length > 0 && <span className="meeting-meta">{meta.join(", ")}</span>}
-      </div>
 
-      <div className="admin-meeting-controls">
-        <StatusStamp status={status} />
-        <label className="check">
-          <input type="checkbox" checked={meeting.visible} onChange={onToggleVisible} />
-          <span>Terlihat mahasiswa</span>
-        </label>
-        {confirming ? (
-          <div className="confirm" role="group" aria-label={`Konfirmasi hapus pertemuan ${meeting.number}`}>
-            <span className="confirm-text">Hapus permanen?</span>
-            <button className="btn btn-danger btn-small" onClick={onDelete}>
-              Ya, hapus
-            </button>
-            <button className="btn btn-quiet btn-small" onClick={onCancelDelete}>
-              Batal
-            </button>
-          </div>
-        ) : (
-          <div className="button-row">
-            <button className="btn btn-secondary btn-small" onClick={onOpen} disabled={Boolean(openDisabledReason)} title={openDisabledReason}>
-              Buka
-            </button>
-            <button
-              className="btn btn-quiet btn-small"
-              onClick={onAskDelete}
-              disabled={meeting.teacherConnected}
-              title={meeting.teacherConnected ? "Hentikan sesi dari VS Code dulu" : undefined}>
-              Hapus
-            </button>
-          </div>
+        {meetings === null && <p className="lc-muted">Memuat pertemuan...</p>}
+
+        {meetings?.length === 0 && (
+          <EmptyState
+            icon="calendar"
+            title="Belum ada pertemuan."
+            text='Tambahkan di atas, atau mulai sesi dari VS Code dan pilih "Pertemuan baru".'
+          />
         )}
-      </div>
-    </li>
+
+        {meetings?.length > 0 && shown.length === 0 && (
+          <EmptyState icon="calendar" title={`Tidak ada pertemuan ${FILTERS[filter].label.toLowerCase()}.`} />
+        )}
+
+        {shown.length > 0 && (
+          <MeetingTable
+            meetings={shown}
+            onRename={(meeting, title) => run(() => api.updateMeeting(meeting.id, { title }))}
+            onToggleVisible={(meeting) => run(() => api.updateMeeting(meeting.id, { visible: !meeting.visible }))}
+            onOpen={openMeeting}
+            onAskDelete={(meeting) => setConfirm(`delete:${meeting.id}`)}
+          />
+        )}
+      </Card>
+
+      <Card title="Hapus mata kuliah" icon="trash">
+        <div className="lc-danger-zone">
+          <p className="lc-muted">Semua pertemuan dan kode yang tersimpan ikut terhapus.</p>
+          <Button variant="danger" onClick={() => setConfirm("delete-course")}>
+            Hapus mata kuliah ini
+          </Button>
+        </div>
+      </Card>
+
+      {confirm === "regenerate" && (
+        <Dialog
+          icon="refresh"
+          title={`Buat kode akses baru untuk ${course.name}?`}
+          text="Kode lama langsung tidak berlaku dan mahasiswa harus memasukkan kode baru."
+          confirmLabel="Ya, buat kode baru"
+          onCancel={() => setConfirm(null)}
+          onConfirm={() => run(() => api.regenerateCode(course.id), { reloadCourses: true })}
+        />
+      )}
+
+      {deletingMeeting && (
+        <Dialog
+          title={`Hapus pertemuan ${deletingMeeting.number}?`}
+          text={`${deletingMeeting.title || "Tanpa judul"} beserta semua filenya akan hilang permanen.`}
+          confirmLabel="Ya, hapus permanen"
+          onCancel={() => setConfirm(null)}
+          onConfirm={() => run(() => api.deleteMeeting(deletingMeeting.id), { reloadCourses: true })}
+        />
+      )}
+
+      {confirm === "delete-course" && (
+        <Dialog
+          title={`Hapus ${course.name}?`}
+          text={`${course.name} beserta ${all.length} pertemuan dan semua kodenya akan hilang permanen.`}
+          confirmLabel="Ya, hapus permanen"
+          onCancel={() => setConfirm(null)}
+          onConfirm={() => run(() => api.deleteCourse(course.id), { reloadCourses: true })}
+        />
+      )}
+    </>
   );
 }

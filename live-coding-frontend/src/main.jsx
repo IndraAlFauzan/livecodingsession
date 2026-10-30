@@ -5,7 +5,9 @@ import HomePage from "./pages/HomePage.jsx";
 import CoursePage from "./pages/CoursePage.jsx";
 import MeetingPage from "./pages/MeetingPage.jsx";
 import AdminPage from "./pages/AdminPage.jsx";
-import "./styles.css";
+import "./design/tokens.css";
+import "./design/bundle.css";
+import "./design/app.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

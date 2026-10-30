@@ -1,14 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import AccessGate from "../components/AccessGate.jsx";
-import CodeViewer from "../components/CodeViewer.jsx";
-import FileTree from "../components/FileTree.jsx";
+import AppHeader from "../components/layout/AppHeader.jsx";
 import ProtectedArea from "../components/ProtectedArea.jsx";
-import StatusBar from "../components/StatusBar.jsx";
+import CodePanel from "../components/session/CodePanel.jsx";
+import FileTree from "../components/session/FileTree.jsx";
+import SessionBar from "../components/session/SessionBar.jsx";
+import { Badge, Button, Card, EmptyState } from "../components/ui/index.js";
 import { WS_URL } from "../config.js";
-import Breadcrumb from "../components/Breadcrumb.jsx";
-import PageShell from "../components/PageShell.jsx";
-import StatusStamp from "../components/StatusStamp.jsx";
 import { getCourseAccess, storage } from "../lib/storage.js";
 import { sortTree } from "../utils/tree.js";
 
@@ -52,6 +51,7 @@ function MeetingViewer({ slug, meetingId, access, onAccessRevoked }) {
   const [flashFiles, setFlashFiles] = useState(() => new Set());
   const [notice, setNotice] = useState(null);
   const [closedMessage, setClosedMessage] = useState(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   const filesRef = useRef(files);
   const selectedRef = useRef(selectedFile);
@@ -222,6 +222,7 @@ function MeetingViewer({ slug, meetingId, access, onAccessRevoked }) {
 
   function openFile(path) {
     setSelectedFile(path);
+    setSheetOpen(false);
     const ws = socketRef.current;
     if (!filesRef.current[path] && ws?.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ type: "file:request", meetingId, path }));
@@ -230,14 +231,19 @@ function MeetingViewer({ slug, meetingId, access, onAccessRevoked }) {
 
   if (closedMessage) {
     return (
-      <PageShell width="narrow">
-        <section className="empty-state" role="alert">
-          <p className="empty-title">{closedMessage}</p>
-          <Link className="btn btn-primary" to={`/mk/${slug}`}>
-            Kembali ke daftar pertemuan
-          </Link>
-        </section>
-      </PageShell>
+      <div className="lc-page lc-page--center">
+        <Card className="lc-joinbox">
+          <EmptyState
+            icon="shield"
+            title={closedMessage}
+            action={
+              <Link className="lc-btn lc-btn--primary" to={`/mk/${slug}`}>
+                Kembali ke daftar pertemuan
+              </Link>
+            }
+          />
+        </Card>
+      </div>
     );
   }
 
@@ -248,93 +254,71 @@ function MeetingViewer({ slug, meetingId, access, onAccessRevoked }) {
   const highlights = isLive && teacherSelection?.path === selectedFile ? teacherSelection.selections : null;
 
   return (
-    <div className="app-shell">
-      <header className="topbar">
-        <div className="topbar-info">
-          <Breadcrumb
-            tone="dark"
-            items={[
-              { label: "Beranda", to: "/" },
-              { label: courseName, to: `/mk/${slug}` },
-              { label: meeting ? `Pertemuan ${meeting.number}` : "Pertemuan" },
-            ]}
-          />
-          <h1>{meeting ? meeting.title || `Pertemuan ${meeting.number}` : "Memuat pertemuan..."}</h1>
-          {meeting && (
-            <p>
-              {meeting.projectName && <span>Project: {meeting.projectName}</span>}
-              {meeting.continuesFrom && (
-                <Link to={`/mk/${slug}/p/${meeting.continuesFrom.id}`}>
-                  Lanjutan dari pertemuan {meeting.continuesFrom.number}
-                </Link>
-              )}
-            </p>
-          )}
-        </div>
-
-        <div className="topbar-actions">
-          {meeting && (
-            <StatusStamp status={isLive ? "live" : "finished"} />
-          )}
-          {isLive && (
-            <label className="follow-toggle">
-              <input
-                type="checkbox"
-                checked={followTeacher}
-                onChange={(event) => setFollowTeacher(event.target.checked)}
-              />
-              Follow Dosen
-            </label>
-          )}
-        </div>
-      </header>
+    <div className="lc-page lc-session-page">
+      <AppHeader
+        crumb={`${courseName} / ${meeting ? `Pertemuan ${meeting.number}` : "Pertemuan"}`}
+        title={meeting ? meeting.title || `Pertemuan ${meeting.number}` : "Memuat pertemuan..."}
+        badge={meeting ? <Badge status={isLive ? "live" : "finished"} /> : null}
+        meta={
+          meeting?.continuesFrom && (
+            <Link className="lc-link" to={`/mk/${slug}/p/${meeting.continuesFrom.id}`}>
+              Lanjutan dari pertemuan {meeting.continuesFrom.number}
+            </Link>
+          )
+        }
+        user={access.studentName}
+      />
 
       {notice && (
-        <div className="alert">
-          <span>{notice}</span>
-          <button className="btn btn-on-dark btn-small" onClick={() => setNotice(null)}>
+        <Card className="lc-notice" role="alert">
+          <p>{notice}</p>
+          <Button variant="secondary" size="sm" onClick={() => setNotice(null)}>
             Tutup
-          </button>
-        </div>
+          </Button>
+        </Card>
       )}
 
       <ProtectedArea watermark={watermark}>
-        <main className="main-layout">
-          <aside className="sidebar">
-            <div className="sidebar-header">
-              <strong>Explorer</strong>
-              {changeCount > 0 && meeting?.continuesFrom && (
-                <small title={`Dibanding Pertemuan ${meeting.continuesFrom.number}`}>
-                  {changeCount} file berubah
-                </small>
-              )}
-            </div>
+        <div className={["lc-session", sheetOpen && "is-sheet-open"].filter(Boolean).join(" ")}>
+          <Button
+            className="lc-session__files"
+            variant="secondary"
+            icon="folder"
+            aria-expanded={sheetOpen}
+            onClick={() => setSheetOpen((value) => !value)}>
+            File project
+          </Button>
 
+          <div className="lc-session__scrim" onClick={() => setSheetOpen(false)} aria-hidden="true" />
+
+          <div className="lc-session__tree">
             <FileTree
               nodes={tree}
+              changeCount={meeting?.continuesFrom ? changeCount : 0}
+              changeHint={meeting?.continuesFrom ? `Dibanding Pertemuan ${meeting.continuesFrom.number}` : undefined}
               selectedFile={selectedFile}
               activeFile={isLive ? activeFile : null}
               flashFiles={flashFiles}
               changes={changes}
               onSelectFile={openFile}
             />
-          </aside>
+          </div>
 
-          <section className="editor-panel">
-            <CodeViewer
-              path={selectedFile}
-              file={selectedFile ? files[selectedFile] : null}
-              highlights={highlights}
-              followHighlights={followTeacher}
-            />
-          </section>
-        </main>
+          <CodePanel
+            path={selectedFile}
+            file={selectedFile ? files[selectedFile] : null}
+            highlights={highlights}
+            followHighlights={followTeacher}
+          />
+        </div>
       </ProtectedArea>
 
-      <StatusBar
+      <SessionBar
         connectionStatus={connectionStatus}
-        studentName={access.studentName}
-        activeFile={activeFile}
+        teacherFile={activeFile}
+        follow={followTeacher}
+        onFollowChange={setFollowTeacher}
+        student={access.studentName}
         isLive={isLive}
       />
     </div>

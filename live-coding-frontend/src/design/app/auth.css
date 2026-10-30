@@ -345,3 +345,11 @@ a.lc-brand:hover .lc-brand__text strong {
 .lc-titlebar .lc-brand {
   color: var(--on-code);
 }
+
+/* Form ganti kata sandi di dalam modal: kolomnya bertumpuk rapat supaya
+   ketiganya muat tanpa modal jadi terlalu tinggi. */
+.lc-sandiform {
+  display: grid;
+  gap: var(--space-3);
+  text-align: left;
+}

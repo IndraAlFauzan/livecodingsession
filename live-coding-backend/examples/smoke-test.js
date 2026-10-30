@@ -106,7 +106,7 @@ async function main() {
   check((await api('POST', '/api/student/login', { body: { nim: nimRina, password: 'salah' } })).status === 401, 'kata sandi salah ditolak');
   const masuk = await api('POST', '/api/student/login', { body: { nim: nimRina.toLowerCase(), password: 'rahasia123' } });
   check(masuk.status === 200 && masuk.data.token !== rina, 'masuk lagi memberi tanda sesi baru per perangkat');
-  const rinaHp = masuk.data.token;
+  let rinaHp = masuk.data.token;
 
   const budi = (await api('POST', '/api/student/register', {
     body: { nim: nimBudi, name: 'Budi Santoso', password: 'rahasia123' },
@@ -129,6 +129,36 @@ async function main() {
     'riwayat sama di perangkat lain milik akun yang sama',
   );
 
+  console.log('\nGanti kata sandi sendiri');
+  check(
+    (await api('POST', '/api/student/password', { student: rina, body: { currentPassword: 'salah', newPassword: 'sandibaru123' } })).status === 401,
+    'sandi lama salah ditolak',
+  );
+  check(
+    (await api('POST', '/api/student/password', { student: rina, body: { currentPassword: 'rahasia123', newPassword: 'pendek' } })).status === 400,
+    'sandi baru terlalu pendek ditolak',
+  );
+  check(
+    (await api('POST', '/api/student/password', { student: rina, body: { currentPassword: 'rahasia123', newPassword: 'rahasia123' } })).status === 400,
+    'sandi baru yang sama dengan yang lama ditolak',
+  );
+
+  const ganti = await api('POST', '/api/student/password', {
+    student: rina,
+    body: { currentPassword: 'rahasia123', newPassword: 'sandibaru123' },
+  });
+  check(ganti.status === 200, 'sandi berhasil diganti');
+  check(ganti.data.otherSessionsRevoked === 1, `perangkat lain dikeluarkan (${ganti.data.otherSessionsRevoked})`);
+  check((await api('GET', '/api/student/me', { student: rinaHp })).status === 401, 'perangkat lain harus masuk lagi');
+  check((await api('GET', '/api/student/me', { student: rina })).status === 200, 'perangkat yang dipakai tetap masuk');
+  check(
+    (await api('POST', '/api/student/login', { body: { nim: nimRina, password: 'rahasia123' } })).status === 401,
+    'sandi lama tidak berlaku lagi',
+  );
+  const pakaiBaru = await api('POST', '/api/student/login', { body: { nim: nimRina, password: 'sandibaru123' } });
+  check(pakaiBaru.status === 200, 'sandi baru bisa dipakai masuk');
+  rinaHp = pakaiBaru.data.token;
+
   console.log('\nDaftar anggota & reset kata sandi');
   const anggota = (await admin('GET', `/api/admin/courses/${mobile.id}/students`)).data.students;
   check(anggota.length === 1 && anggota[0].nim === nimRina, 'dosen melihat daftar anggota kelas');
@@ -139,8 +169,8 @@ async function main() {
   check(reset.data.sessionsRevoked >= 2, `semua perangkat dikeluarkan (${reset.data.sessionsRevoked} sesi)`);
   check((await api('GET', '/api/student/me', { student: rinaHp })).status === 401, 'tanda sesi lama mati setelah reset');
   check(
-    (await api('POST', '/api/student/login', { body: { nim: nimRina, password: 'rahasia123' } })).status === 401,
-    'sandi lama tidak berlaku lagi',
+    (await api('POST', '/api/student/login', { body: { nim: nimRina, password: 'sandibaru123' } })).status === 401,
+    'sandi pilihan mahasiswa ditimpa reset dosen',
   );
   const masukBaru = await api('POST', '/api/student/login', { body: { nim: nimRina, password: reset.data.password } });
   check(masukBaru.status === 200, 'sandi sementara bisa dipakai masuk');

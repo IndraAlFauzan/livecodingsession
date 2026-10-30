@@ -24,6 +24,9 @@ bisa mengganti kode tanpa melempar keluar yang sudah di dalam.
 
 Nama yang tampil di sesi live datang dari akun di sisi server, bukan dari kiriman klien.
 
+Mahasiswa mengganti kata sandinya sendiri dari beranda; perangkat lain yang masih masuk ikut
+dikeluarkan. Kalau sandinya lupa, dosen bisa membuat sandi sementara dari halaman admin.
+
 ## Perlindungan kode
 
 Viewer menyembunyikan kode saat shortcut screenshot terdeteksi, dan memblokir copy, cut, klik kanan, seret, seleksi teks, serta print. Browser tidak bisa mencegah screenshot dari sistem operasi atau kamera, dan sejak watermark dicabut bocoran tidak bisa dilacak ke mahasiswa asalnya.
@@ -46,6 +49,7 @@ Vitest dengan jsdom. Yang diutamakan adalah perilaku yang mahal kalau rusak:
 | `components/ui/Dialog.test.jsx` | fokus awal di Batal, Esc, jebakan Tab, aria |
 | `components/student/JoinCard.test.jsx` | validasi kode, huruf besar otomatis, kode mata kuliah lain ditolak |
 | `components/admin/StudentRoster.test.jsx` | konfirmasi sebelum reset, baris yang benar yang direset, sandi sementara hanya tampil sekali |
+| `components/student/PasswordDialog.test.jsx` | ulangan sandi dicocokkan di layar, pesan galat server, jumlah perangkat yang dikeluarkan |
 
 `src/test/fakeWebSocket.js` adalah WebSocket tiruan yang dikemudikan tes — tidak ada koneksi sungguhan.
 

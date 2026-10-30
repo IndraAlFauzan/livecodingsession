@@ -241,7 +241,15 @@ function deleteSession(token) {
   db.prepare('DELETE FROM student_sessions WHERE token = ?').run(token);
 }
 
-// Dipakai saat sandi diganti atau direset: semua perangkat harus masuk lagi.
+// Dipakai saat mahasiswa mengganti sandinya sendiri: perangkat yang sedang
+// dipakai tetap masuk, sisanya dikeluarkan.
+function deleteOtherSessions(studentId, keepToken) {
+  return db
+    .prepare('DELETE FROM student_sessions WHERE student_id = ? AND token != ?')
+    .run(studentId, keepToken).changes;
+}
+
+// Dipakai saat sandi direset dosen: semua perangkat harus masuk lagi.
 function deleteSessionsOfStudent(studentId) {
   return db.prepare('DELETE FROM student_sessions WHERE student_id = ?').run(studentId).changes;
 }
@@ -501,6 +509,7 @@ module.exports = {
   getStudentBySession,
   deleteSession,
   deleteSessionsOfStudent,
+  deleteOtherSessions,
   enrollStudent,
   isEnrolled,
   listEnrolledCourses,

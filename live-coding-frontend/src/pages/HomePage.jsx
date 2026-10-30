@@ -4,6 +4,7 @@ import Brand from "../components/layout/Brand.jsx";
 import InstitutionMarks from "../components/layout/InstitutionMarks.jsx";
 import CourseCard from "../components/student/CourseCard.jsx";
 import JoinCard from "../components/student/JoinCard.jsx";
+import PasswordDialog from "../components/student/PasswordDialog.jsx";
 import { Button, Card, Dialog, EmptyState } from "../components/ui/index.js";
 import { useStudentAuth } from "../hooks/useStudentAuth.jsx";
 import { studentApi } from "../lib/api.js";
@@ -65,6 +66,7 @@ export default function HomePage() {
   const navigate = useNavigate();
   const { student, courses, logout, leaveCourse } = useStudentAuth();
   const [akanKeluar, setAkanKeluar] = useState(null);
+  const [gantiSandi, setGantiSandi] = useState(false);
 
   const openCourse = (course) => navigate(`/mk/${course.slug}`);
 
@@ -88,9 +90,14 @@ export default function HomePage() {
                 {student ? `Masuk sebagai ${student.name} (${student.nim}).` : "Memuat akun..."}
               </p>
             </div>
-            <Button variant="secondary" icon="logout" onClick={logout}>
-              Keluar
-            </Button>
+            <div className="lc-pagehead__actions">
+              <Button variant="secondary" icon="key" onClick={() => setGantiSandi(true)}>
+                Ganti kata sandi
+              </Button>
+              <Button variant="secondary" icon="logout" onClick={logout}>
+                Keluar
+              </Button>
+            </div>
           </div>
 
           {courses.length === 0 ? (
@@ -110,6 +117,8 @@ export default function HomePage() {
           )}
         </div>
       </div>
+
+      {gantiSandi && <PasswordDialog onClose={() => setGantiSandi(false)} />}
 
       {akanKeluar && (
         <Dialog

@@ -108,6 +108,7 @@ Semua rute di bawah `/me` dan `/courses` butuh header `X-Student-Token` dari has
 | POST | `/api/student/login` | `{ nim, password }` → `{ student, token }` |
 | POST | `/api/student/logout` | Mematikan tanda sesi perangkat ini saja |
 | GET | `/api/student/me` | Akun beserta riwayat mata kuliah |
+| POST | `/api/student/password` | `{ currentPassword, newPassword }`; perangkat lain dikeluarkan |
 | POST | `/api/student/courses` | `{ code }` → bergabung ke mata kuliah |
 | GET | `/api/student/courses` | Riwayat mata kuliah |
 | GET | `/api/student/courses/:slug` | Pertemuan yang tampil; 403 bila belum bergabung |

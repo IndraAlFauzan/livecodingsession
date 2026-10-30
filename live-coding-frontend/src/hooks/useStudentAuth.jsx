@@ -76,6 +76,8 @@ export function StudentAuthProvider({ children }) {
         }
         lupakan();
       },
+      changePassword: (currentPassword, newPassword) =>
+        studentApi.changePassword(token, currentPassword, newPassword),
       leaveCourse: async (slug) => {
         await studentApi.leaveCourse(token, slug);
         await muatUlang();

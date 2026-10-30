@@ -97,7 +97,7 @@ export default function StudentRoster({ api, courseId, onError }) {
           <p className="lc-newpass">{hasilReset.password}</p>
           <p className="lc-dialog__text">
             Catat atau bacakan sekarang — sandi ini tidak bisa dilihat lagi setelah jendela ini ditutup. Minta
-            mahasiswa menggantinya setelah berhasil masuk.
+            mahasiswa menggantinya lewat tombol "Ganti kata sandi" di berandanya setelah berhasil masuk.
           </p>
           <div className="lc-dialog__actions">
             <Button ref={tutupRef} onClick={() => setHasilReset(null)}>

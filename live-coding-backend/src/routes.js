@@ -294,6 +294,31 @@ student.post('/logout', (req, res) => {
   res.status(204).end();
 });
 
+student.post(
+  '/password',
+  requireStudent,
+  aman(async (req, res) => {
+    const baris = db.getStudentRowByNim(req.student.nim);
+    if (!(await verifyPassword(req.body?.currentPassword ?? '', baris.password_hash))) {
+      return res.status(401).json({ error: 'Kata sandi lama salah.' });
+    }
+
+    const keluhan = checkPassword(req.body?.newPassword);
+    if (keluhan) return res.status(400).json({ error: keluhan });
+    if (req.body.newPassword === req.body.currentPassword) {
+      return res.status(400).json({ error: 'Kata sandi baru harus berbeda dari yang lama.' });
+    }
+
+    db.setStudentPassword(baris.id, await hashPassword(req.body.newPassword));
+    // Perangkat ini tetap masuk; perangkat lain dikeluarkan. Kalau sandi lama
+    // sempat bocor, mengganti sandi saja tidak memutus sesi yang sudah jalan.
+    const dikeluarkan = db.deleteOtherSessions(baris.id, req.get('x-student-token'));
+    throttle.hapusCatatan(baris.nim);
+
+    res.json({ otherSessionsRevoked: dikeluarkan });
+  }),
+);
+
 student.get('/me', requireStudent, (req, res) => {
   res.json({ student: { nim: req.student.nim, name: req.student.name }, courses: db.listEnrolledCourses(req.student.id) });
 });

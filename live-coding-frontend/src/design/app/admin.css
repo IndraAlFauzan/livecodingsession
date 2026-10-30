@@ -1,0 +1,54 @@
+/* Modal lebar dan detail pertemuan di dashboard dosen.
+   Nilai dari tokens.css; bundle.css tetap sumber komponen lc-*. */
+
+/* ---------- modal lebar dan detail pertemuan ---------- */
+
+.lc-modal__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.lc-modal__head .lc-dialog__title {
+  flex: 1;
+  min-width: 0;
+}
+
+.lc-dialog--wide {
+  max-width: 560px;
+  max-height: min(78vh, 720px);
+  overflow: auto;
+  text-align: left;
+}
+
+.lc-dialog--wide .lc-dialog__text {
+  text-align: left;
+}
+
+.lc-detail__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--line);
+}
+
+.lc-detail__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.lc-detail__note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 17px;
+  color: var(--muted);
+}

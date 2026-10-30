@@ -1,0 +1,108 @@
+/* Kerangka halaman dan sidebar yang jadi drawer di layar sempit.
+   Nilai dari tokens.css; bundle.css tetap sumber komponen lc-*. */
+
+/* Lapisan aplikasi di atas design system: tata letak halaman, breakpoint, dan sambungan Monaco.
+   Semua nilai dari tokens.css; angka langsung hanya untuk geometri kecil dan breakpoint. */
+
+/* ---------- kerangka halaman ---------- */
+
+#root {
+  min-height: 100vh;
+}
+
+.lc-page {
+  min-height: 100vh;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.lc-page--center {
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6) var(--space-4);
+}
+
+.lc-page--wide {
+  padding: var(--space-6);
+}
+
+.lc-page__body {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.lc-copyright {
+  margin: 0;
+  padding-top: var(--space-2);
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.lc-app .lc-copyright {
+  text-align: left;
+}
+
+/* ---------- sidebar sebagai drawer ---------- */
+
+.lc-app__scrim {
+  display: none;
+}
+
+.lc-header__menu {
+  display: none;
+}
+
+.lc-header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.lc-sidebar__note {
+  margin: 0;
+  padding: 0 var(--space-3);
+  font-size: 13px;
+}
+
+@media (max-width: 1023px) {
+  .lc-app {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .lc-app__aside {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 30;
+    padding: var(--space-4);
+    transform: translateX(-110%);
+    transition: transform var(--ease);
+  }
+
+  .lc-app__aside .lc-sidebar {
+    height: 100%;
+    overflow: auto;
+  }
+
+  .lc-app.is-drawer-open .lc-app__aside {
+    transform: translateX(0);
+  }
+
+  .lc-app.is-drawer-open .lc-app__scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    background: var(--scrim);
+  }
+
+  .lc-header__menu {
+    display: inline-flex;
+  }
+}

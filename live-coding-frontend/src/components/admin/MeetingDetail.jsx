@@ -1,21 +1,28 @@
 import Avatar from "../ui/Avatar.jsx";
 import Badge from "../ui/Badge.jsx";
 import EmptyState from "../ui/EmptyState.jsx";
+import IconButton from "../ui/IconButton.jsx";
 import Modal from "../ui/Modal.jsx";
 import { formatDateTime } from "../../lib/api.js";
+import { useId } from "react";
 
 export default function MeetingDetail({ meeting, status, data, onClose }) {
   const watching = data?.watchingNow || [];
   const attended = data?.viewers || [];
+  const titleId = `${useId()}-title`;
   const watchingNames = new Set(watching.map((person) => person.name));
   const duplicates = watching.length - watchingNames.size;
 
   return (
-    <Modal
-      title={meeting.title || `Pertemuan ${meeting.number}`}
-      head={<Badge status={status} />}
-      className="lc-dialog--wide"
-      onClose={onClose}>
+    <Modal role="dialog" labelledBy={titleId} className="lc-dialog--wide" onClose={onClose}>
+      <div className="lc-modal__head">
+        <h2 className="lc-dialog__title" id={titleId}>
+          {meeting.title || `Pertemuan ${meeting.number}`}
+        </h2>
+        <Badge status={status} />
+        <IconButton icon="x" label="Tutup" variant="plain" size="sm" onClick={onClose} />
+      </div>
+
       <p className="lc-dialog__text">
         {[
           `Pertemuan ${meeting.number}`,

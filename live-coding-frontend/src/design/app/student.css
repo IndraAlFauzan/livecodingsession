@@ -1,0 +1,33 @@
+/* Beranda mahasiswa.
+   Nilai dari tokens.css; bundle.css tetap sumber komponen lc-*. */
+
+/* ---------- beranda mahasiswa ---------- */
+
+.lc-home {
+  display: grid;
+  grid-template-columns: 420px minmax(0, 1fr);
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.lc-course__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+@media (max-width: 899px) {
+  .lc-home {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-5);
+  }
+
+  .lc-joinbox {
+    width: 100%;
+  }
+}
+
+/* Link yang tampil sebagai tombol. */
+a.lc-btn {
+  text-decoration: none;
+}

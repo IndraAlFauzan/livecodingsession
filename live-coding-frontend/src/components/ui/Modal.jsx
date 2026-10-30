@@ -1,19 +1,19 @@
-import { useEffect, useId, useRef } from "react";
-import IconButton from "./IconButton.jsx";
+import { useEffect, useRef } from "react";
 
 const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])';
 
-// Dasar semua jendela modal: Esc menutup, fokus terkunci, fokus kembali ke pemicu.
-export default function Modal({ role = "dialog", title, head, onClose, className, initialFocus, children }) {
+// Kerangka semua jendela modal: latar, jebakan fokus, Esc, dan fokus kembali ke
+// pemicu. Isinya ditentukan pemakai -- Dialog dan MeetingDetail berbeda bentuk.
+export default function Modal({ role = "dialog", labelledBy, describedBy, onClose, className, initialFocus, children }) {
   const panelRef = useRef(null);
-  const closeRef = useRef(null);
   const closeHandler = useRef(onClose);
   closeHandler.current = onClose;
-  const titleId = `${useId()}-title`;
 
   useEffect(() => {
     const opener = document.activeElement;
-    (initialFocus?.current || closeRef.current)?.focus();
+    const focusFirst = () =>
+      (initialFocus?.current || panelRef.current?.querySelector(FOCUSABLE))?.focus();
+    focusFirst();
 
     function onKeyDown(event) {
       if (event.key === "Escape") {
@@ -40,7 +40,7 @@ export default function Modal({ role = "dialog", title, head, onClose, className
     let restore;
     function onFocusIn(event) {
       if (panelRef.current && !panelRef.current.contains(event.target)) {
-        restore = setTimeout(() => (initialFocus?.current || closeRef.current)?.focus(), 0);
+        restore = setTimeout(focusFirst, 0);
       }
     }
 
@@ -61,14 +61,8 @@ export default function Modal({ role = "dialog", title, head, onClose, className
         className={["lc-dialog", className].filter(Boolean).join(" ")}
         role={role}
         aria-modal="true"
-        aria-labelledby={titleId}>
-        <div className="lc-modal__head">
-          <h2 className="lc-dialog__title" id={titleId}>
-            {title}
-          </h2>
-          {head}
-          <IconButton ref={closeRef} icon="x" label="Tutup" variant="plain" size="sm" onClick={onClose} />
-        </div>
+        aria-labelledby={labelledBy}
+        aria-describedby={describedBy}>
         {children}
       </div>
     </div>

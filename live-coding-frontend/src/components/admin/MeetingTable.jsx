@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { formatDateTime } from "../../lib/api.js";
+import { derivedStatus } from "../../utils/meetingStatus.js";
 import Badge from "../ui/Badge.jsx";
 import Button from "../ui/Button.jsx";
 import IconButton from "../ui/IconButton.jsx";
@@ -71,7 +72,7 @@ export default function MeetingTable({ meetings, onRename, onToggleVisible, onOp
         </thead>
         <tbody>
           {meetings.map((meeting) => {
-            const status = meeting.status === "live" && !meeting.teacherConnected ? "finished" : meeting.status;
+            const status = derivedStatus(meeting);
             const openDisabledReason =
               meeting.status === "draft"
                 ? "Belum pernah dimulai"

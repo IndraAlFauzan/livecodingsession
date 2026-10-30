@@ -1,0 +1,151 @@
+/* Potongan kecil lintas halaman dan penyesuaian layar sempit.
+   Nilai dari tokens.css; bundle.css tetap sumber komponen lc-*. */
+
+/* ---------- potongan kecil ---------- */
+
+.lc-inline-form {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.lc-inline-form .lc-field {
+  flex: 1;
+  min-width: 180px;
+}
+
+.lc-danger-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.lc-table__wrap {
+  position: relative; /* menahan .lc-sr di dalam kartu, bukan melebarkan halaman */
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.lc-cards {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+}
+
+@media (max-width: 1023px) {
+  .lc-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+.lc-live__note {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.lc-meeting__action {
+  align-self: flex-start;
+}
+
+.lc-meeting__clock {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--live-ink);
+}
+
+.lc-table__rename {
+  display: block;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 700;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+.lc-table__rename:hover {
+  color: var(--violet-ink);
+}
+
+.lc-table__input {
+  height: 36px;
+  padding: 0 var(--space-3);
+}
+
+.lc-table__input input {
+  font-size: 14px;
+}
+
+.lc-joinbox {
+  width: min(420px, 100%);
+}
+
+.lc-sidebar__add {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3) var(--space-3);
+}
+
+/* Field sudah punya cincin fokusnya sendiri di .lc-input:focus-within. */
+.lc-input input:focus-visible {
+  box-shadow: none;
+}
+
+/* ---------- layar sempit ---------- */
+
+@media (max-width: 719px) {
+  .lc-page,
+  .lc-app {
+    padding: var(--space-3);
+  }
+
+  .lc-header {
+    flex-wrap: wrap;
+  }
+
+  .lc-header__crumbs {
+    flex-basis: 100%;
+    order: -1;
+  }
+
+  .lc-card__head {
+    flex-wrap: wrap;
+  }
+
+  .lc-card__actions {
+    width: 100%;
+    min-width: 0;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .lc-tabs {
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+  }
+
+  .lc-tab {
+    white-space: nowrap;
+  }
+
+  /* Tabel pertemuan menggulir di dalam kartunya, bukan menggeser halaman. */
+  .lc-table {
+    min-width: 560px;
+  }
+
+  .lc-live__clock {
+    font-size: 40px;
+    line-height: 40px;
+  }
+}

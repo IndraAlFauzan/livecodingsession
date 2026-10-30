@@ -1,0 +1,347 @@
+/* Halaman mata kuliah, layar pintu masuk dua kolom, merek, lambang institusi.
+   Nilai dari tokens.css; bundle.css tetap sumber komponen lc-*. */
+
+/* ---------- halaman mata kuliah ---------- */
+
+.lc-page__body > .lc-tabs {
+  align-self: flex-start;
+}
+
+/* ---------- layar pintu masuk: bar merek + dua kolom ---------- */
+
+.lc-auth {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--canvas);
+}
+
+.lc-auth__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.lc-auth__body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.lc-auth__form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-6);
+  padding: var(--space-7) var(--space-5);
+  min-width: 0;
+}
+
+.lc-auth__stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-5);
+  width: min(420px, 100%);
+}
+
+.lc-auth__note {
+  margin: 0;
+  text-align: center;
+}
+
+.lc-auth__aside {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .lc-auth__body {
+    grid-template-columns: 46fr 54fr;
+  }
+
+  .lc-auth__aside {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-7);
+    overflow: hidden;
+    background:
+      radial-gradient(120% 90% at 85% 10%, var(--violet) 0%, transparent 55%),
+      var(--code-bg);
+  }
+
+  .lc-auth__aside-inner {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+    width: 100%;
+    max-width: 520px;
+  }
+
+  .lc-auth__pitch {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-3);
+  }
+
+  .lc-auth__title {
+    margin: 0;
+    font-size: 26px;
+    line-height: 32px;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    color: var(--on-code);
+    text-wrap: balance;
+  }
+
+  .lc-auth__text {
+    margin: 0;
+    font-size: 14px;
+    line-height: 21px;
+    color: var(--on-code-muted);
+    max-width: 44ch;
+  }
+
+  .lc-auth__preview {
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-float);
+  }
+
+  .lc-auth__preview .lc-codepanel__tabs {
+    overflow: hidden;
+  }
+
+  .lc-auth__preview pre {
+    padding-bottom: var(--space-4);
+    overflow: hidden;
+  }
+}
+
+/* Daftar bahasa dan framework yang bisa tampil di panel kode. */
+.lc-langs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lc-langs__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-full);
+  box-shadow: inset 0 0 0 1px var(--code-line);
+  background: var(--code-panel);
+  color: var(--on-code);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.lc-langs__chip i {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+/* ---------- lambang institusi ---------- */
+
+.lc-marks {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-6);
+  flex-wrap: wrap;
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--line);
+}
+
+.lc-marks img {
+  display: block;
+  width: auto;
+  opacity: 0.85;
+}
+
+.lc-marks__telu {
+  height: 38px;
+}
+
+.lc-marks__fif {
+  height: 40px;
+}
+
+/* Berkas prodi monokrom putih; invert memberi varian gelap untuk kanvas terang. */
+.lc-marks__prodi {
+  height: 26px;
+  filter: invert(1);
+  opacity: 0.72;
+}
+
+.lc-marks--center {
+  width: min(640px, 100%);
+  margin-top: var(--space-2);
+}
+
+.lc-marks--bare {
+  gap: var(--space-5);
+  padding-top: 0;
+  border-top: 0;
+  justify-content: flex-end;
+}
+
+.lc-marks--bare .lc-marks__telu,
+.lc-marks--bare .lc-marks__fif {
+  height: 30px;
+}
+
+.lc-marks--bare .lc-marks__prodi {
+  height: 20px;
+}
+
+@media (max-width: 639px) {
+  .lc-auth__top {
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .lc-marks--bare {
+    gap: var(--space-3);
+    flex: 1;
+  }
+
+  .lc-marks--bare .lc-marks__telu,
+  .lc-marks--bare .lc-marks__fif {
+    height: 22px;
+  }
+
+  .lc-marks--bare .lc-marks__prodi {
+    height: 15px;
+  }
+}
+
+.lc-page__foot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: 1280px;
+  margin: var(--space-4) auto 0;
+}
+
+@media (max-width: 519px) {
+  .lc-marks {
+    gap: var(--space-4);
+  }
+
+  .lc-marks__telu,
+  .lc-marks__fif {
+    height: 30px;
+  }
+
+  .lc-marks__prodi {
+    height: 20px;
+  }
+}
+
+/* ---------- merek ---------- */
+
+.lc-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  text-decoration: none;
+  color: var(--ink);
+  border-radius: var(--radius-md);
+}
+
+.lc-brand__mark {
+  display: block;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+}
+
+.lc-brand__text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  min-width: 0;
+}
+
+.lc-brand__text strong {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.lc-brand__text small {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.lc-brand--lg .lc-brand__mark {
+  width: 48px;
+  height: 48px;
+}
+
+.lc-brand--lg .lc-brand__text strong {
+  font-size: 20px;
+}
+
+.lc-brand--lg .lc-brand__text small {
+  font-size: 13px;
+}
+
+.lc-brand--sm {
+  gap: var(--space-2);
+}
+
+.lc-brand--sm .lc-brand__mark {
+  width: 24px;
+  height: 24px;
+}
+
+.lc-brand--sm .lc-brand__text strong {
+  font-size: 14px;
+}
+
+.lc-brand--sm .lc-brand__text small {
+  display: none;
+}
+
+.lc-brand--mark .lc-brand__mark {
+  width: 22px;
+  height: 22px;
+}
+
+a.lc-brand:hover .lc-brand__text strong {
+  color: var(--violet-ink);
+}
+
+/* Di halaman pintu masuk, merek berdiri di atas kartu dan ikut rata tengah. */
+.lc-brand--stacked {
+  flex-direction: column;
+  gap: var(--space-2);
+  text-align: center;
+}
+
+.lc-brand--stacked .lc-brand__text {
+  align-items: center;
+}
+
+/* Di title bar jendela sesi, mark berdiri sendiri tanpa wordmark. */
+.lc-titlebar .lc-brand {
+  color: var(--on-code);
+}

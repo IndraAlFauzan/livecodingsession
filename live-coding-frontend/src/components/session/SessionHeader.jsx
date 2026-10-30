@@ -1,4 +1,5 @@
 import Avatar from "../ui/Avatar.jsx";
+import Brand from "../layout/Brand.jsx";
 import Badge from "../ui/Badge.jsx";
 import { useElapsed } from "../../utils/elapsed.js";
 
@@ -8,6 +9,7 @@ export default function SessionHeader({ crumb, title, isLive, hasMeeting, starte
 
   return (
     <header className="lc-titlebar">
+      <Brand markOnly />
       <div className="lc-titlebar__id">
         <span className="lc-titlebar__crumb">{crumb}</span>
         <strong className="lc-titlebar__title">{title}</strong>

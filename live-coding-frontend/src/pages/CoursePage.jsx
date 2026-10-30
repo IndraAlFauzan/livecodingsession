@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import AccessGate from "../components/AccessGate.jsx";
+import Brand from "../components/layout/Brand.jsx";
 import MeetingCard from "../components/admin/MeetingCard.jsx";
 import { Button, Card, EmptyState, Tabs } from "../components/ui/index.js";
 import { formatDateTime, studentApi } from "../lib/api.js";
@@ -87,6 +88,7 @@ export default function CoursePage() {
   return (
     <div className="lc-page lc-page--wide">
       <div className="lc-page__body">
+        <Brand size="sm" />
         <div className="lc-pagehead">
           <div className="lc-pagehead__text">
             <h1 className="lc-h1">{courseName}</h1>

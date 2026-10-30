@@ -13,8 +13,7 @@ function folderHasChanges(folderPath, changes) {
 }
 
 function TreeNode({ node, depth, selectedFile, activeFile, flashFiles, changes, onSelectFile }) {
-  // Terbuka secara bawaan supaya penanda Dosen, Baru dan Diubah langsung terlihat.
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const pad = { paddingLeft: 8 + depth * 12 };
 
   if (node.type === "folder") {

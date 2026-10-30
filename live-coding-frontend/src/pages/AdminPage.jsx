@@ -5,6 +5,8 @@ import LiveSessionCard from "../components/admin/LiveSessionCard.jsx";
 import MeetingCard from "../components/admin/MeetingCard.jsx";
 import MeetingTable from "../components/admin/MeetingTable.jsx";
 import AppHeader from "../components/layout/AppHeader.jsx";
+import AuthAside from "../components/layout/AuthAside.jsx";
+import AuthLayout from "../components/layout/AuthLayout.jsx";
 import AppLayout from "../components/layout/AppLayout.jsx";
 import Sidebar from "../components/layout/Sidebar.jsx";
 import { Button, Card, Dialog, EmptyState, IconButton, Tabs, TextField } from "../components/ui/index.js";
@@ -68,7 +70,13 @@ function AdminLogin({ onLogin }) {
   }
 
   return (
-    <div className="lc-page lc-page--center">
+    <AuthLayout
+      aside={
+        <AuthAside
+          title="Mulai sesi dari VS Code, kelas ikut melihat."
+          text="Kelola mata kuliah, kode akses, dan pertemuan di sini. Sesi live dijalankan dari extension."
+        />
+      }>
       <form className="lc-join lc-joinbox" onSubmit={handleSubmit}>
         <div>
           <h1 className="lc-join__title">Masuk sebagai dosen</h1>
@@ -89,8 +97,7 @@ function AdminLogin({ onLogin }) {
           {submitting ? "Memeriksa token..." : "Masuk ke admin"}
         </Button>
       </form>
-      <Copyright />
-    </div>
+    </AuthLayout>
   );
 }
 

@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import AuthAside from "../components/layout/AuthAside.jsx";
+import AuthLayout from "../components/layout/AuthLayout.jsx";
+import Brand from "../components/layout/Brand.jsx";
+import InstitutionMarks from "../components/layout/InstitutionMarks.jsx";
 import CourseCard from "../components/student/CourseCard.jsx";
 import JoinCard from "../components/student/JoinCard.jsx";
 import { studentApi } from "../lib/api.js";
@@ -71,18 +75,22 @@ export default function HomePage() {
 
   if (entries.length === 0) {
     return (
-      <div className="lc-page lc-page--center">
+      <AuthLayout
+        note="Kode di halaman kelas hanya bisa dibaca. Salin, klik kanan, dan cetak dimatikan selama kamu melihatnya."
+        aside={
+          <AuthAside
+            title="Lihat kode dosen langsung, baris demi baris."
+            text="Saat dosen menyorot sebuah baris di VS Code, sorotan itu muncul di layarmu detik itu juga."
+          />
+        }>
         <JoinCard heading="h1" onSuccess={openCourse} />
-        <p className="lc-sub lc-joinbox">
-          Kode di halaman kelas hanya bisa dibaca, dan nama kamu tampil samar di atasnya selama kamu melihat.
-        </p>
-        <Copyright />
-      </div>
+      </AuthLayout>
     );
   }
 
   return (
     <div className="lc-page lc-page--wide">
+      <Brand />
       <div className="lc-page__body lc-home">
         <JoinCard onSuccess={openCourse} />
 
@@ -103,7 +111,10 @@ export default function HomePage() {
           </div>
         </div>
       </div>
-      <Copyright />
+      <footer className="lc-page__foot">
+        <InstitutionMarks />
+        <Copyright />
+      </footer>
     </div>
   );
 }

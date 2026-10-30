@@ -4,7 +4,7 @@ import { sortTree } from "../utils/tree.js";
 
 // Seluruh percakapan WebSocket satu pertemuan. Dipisah dari komponen supaya
 // MeetingPage hanya mengurus tampilan, dan alur sesi bisa dibaca utuh di sini.
-export default function useLiveSession({ meetingId, access, onAccessRevoked }) {
+export default function useLiveSession({ meetingId, token, onAccessRevoked, onSessionExpired }) {
   const socketRef = useRef(null);
   const [connectionStatus, setConnectionStatus] = useState("connecting");
   const [course, setCourse] = useState(null);
@@ -26,10 +26,12 @@ export default function useLiveSession({ meetingId, access, onAccessRevoked }) {
   const selectedRef = useRef(selectedFile);
   const followRef = useRef(followTeacher);
   const revokeRef = useRef(onAccessRevoked);
+  const expiredRef = useRef(onSessionExpired);
   filesRef.current = files;
   selectedRef.current = selectedFile;
   followRef.current = followTeacher;
   revokeRef.current = onAccessRevoked;
+  expiredRef.current = onSessionExpired;
 
   useEffect(() => {
     let ws;
@@ -153,10 +155,17 @@ export default function useLiveSession({ meetingId, access, onAccessRevoked }) {
           break;
 
         case "error":
-          if (message.reason === "invalid_code") revokeRef.current(message.message);
-          else if (message.reason === "unavailable" || message.reason === "invalid_name")
+          // Belum jadi anggota: pintu kode akses. Tanda sesi mati: harus masuk
+          // lagi, dan itu ditangani StudentGate setelah konteks akun dibersihkan.
+          if (message.reason === "not_enrolled" || message.reason === "invalid_code") {
+            revokeRef.current(message.message);
+          } else if (message.reason === "unauthenticated") {
+            expiredRef.current();
+          } else if (message.reason === "unavailable") {
             setClosedMessage(message.message);
-          else setNotice(message.message);
+          } else {
+            setNotice(message.message);
+          }
           break;
 
         default:
@@ -173,12 +182,8 @@ export default function useLiveSession({ meetingId, access, onAccessRevoked }) {
         attempt = 0;
         setConnectionStatus("connected");
         ws.send(
-          JSON.stringify({
-            type: "student:join",
-            meetingId,
-            accessCode: access.code,
-            studentName: access.studentName,
-          }),
+          // Nama tidak dikirim: server mengambilnya dari akun pemilik tanda sesi.
+          JSON.stringify({ type: "student:join", meetingId, studentToken: token }),
         );
       };
 
@@ -203,7 +208,7 @@ export default function useLiveSession({ meetingId, access, onAccessRevoked }) {
       clearTimeout(retryTimer);
       ws?.close();
     };
-  }, [meetingId, access.code, access.studentName]);
+  }, [meetingId, token]);
 
   useEffect(() => {
     const ws = socketRef.current;

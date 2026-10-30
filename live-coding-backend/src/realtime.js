@@ -127,33 +127,35 @@ function attachRealtime(server) {
 
   function handleStudentJoin(ws, message) {
     const meeting = typeof message.meetingId === 'string' ? db.getMeeting(message.meetingId) : null;
-    const course = db.getCourseByActiveCode(message.accessCode);
 
-    if (!meeting || !course || course.id !== meeting.courseId) {
-      return reject(ws, 'Kode akses tidak valid untuk pertemuan ini.', 'invalid_code');
+    // Identitas datang dari tanda sesi, bukan dari badan pesan. Klien tidak lagi
+    // bisa menyebut nama sendiri, jadi tidak ada cara menyamar jadi orang lain.
+    const akun = db.getStudentBySession(message.studentToken);
+    if (!akun) {
+      return reject(ws, 'Sesi kamu sudah berakhir. Masuk lagi lalu buka pertemuan ini.', 'unauthenticated');
+    }
+
+    if (!meeting) return reject(ws, 'Pertemuan tidak ditemukan.', 'invalid_code');
+    if (!db.isEnrolled(meeting.courseId, akun.id)) {
+      return reject(ws, 'Kamu belum bergabung di mata kuliah ini.', 'not_enrolled');
     }
     if (!meeting.visible || meeting.status === 'draft') {
       return reject(ws, 'Pertemuan ini belum tersedia.', 'unavailable');
     }
 
-    // Daftar hadir hanya berguna kalau namanya nyata. Klien tanpa nama ditolak,
-    // bukan dicatat sebagai 'Tanpa nama' -- biasanya itu tab lama dari versi
-    // frontend sebelum nama dikirim, dan barisnya akan jadi hantu di daftar.
-    const studentName =
-      typeof message.studentName === 'string' ? message.studentName.trim().slice(0, 60) : '';
-    if (!studentName) {
-      return reject(ws, 'Nama mahasiswa tidak terkirim. Muat ulang halaman lalu masuk lagi.', 'invalid_name');
-    }
-
     live.getRoom(meeting.id).students.add(ws);
     ws.role = 'student';
     ws.meetingId = meeting.id;
-    ws.studentName = studentName;
+    ws.studentId = akun.id;
+    ws.studentNim = akun.nim;
+    ws.studentName = akun.name;
     ws.viewerId = `v${++viewerSeq}`;
     ws.viewingFile = null;
     ws.following = true;
 
-    db.recordViewer(meeting.id, studentName);
+    // Daftar "siapa yang pernah membuka pertemuan ini" tetap seperti sebelumnya;
+    // bedanya namanya kini berasal dari akun, bukan dari kiriman klien.
+    db.recordViewer(meeting.id, akun.name);
     send(ws, buildInit(meeting.id));
     live.pushViewers(meeting.id);
   }

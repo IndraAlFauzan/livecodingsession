@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import AccessCodeCard from "./AccessCodeCard.jsx";
+import StudentRoster from "./StudentRoster.jsx";
 import LiveSessionCard from "./LiveSessionCard.jsx";
 import MeetingCard from "./MeetingCard.jsx";
 import MeetingDetail from "./MeetingDetail.jsx";
@@ -205,6 +206,7 @@ export default function CourseDetail({ api, course, onError, onCourseChanged, on
           onCopy={copyCode}
           onToggle={() => run(() => api.updateCourse(course.id, { codeActive: !course.codeActive }), { reloadCourses: true })}
           onRegenerate={() => setConfirm("regenerate")}
+          onRevoke={() => setConfirm("revoke")}
         />
       </div>
 
@@ -266,6 +268,8 @@ export default function CourseDetail({ api, course, onError, onCourseChanged, on
         )}
       </Card>
 
+      <StudentRoster api={api} courseId={course.id} onError={onError} key={course.id} />
+
       <ViewerList viewers={liveViewers} live={Boolean(liveMeeting)} />
 
       <Card title="Hapus mata kuliah" icon="trash">
@@ -290,7 +294,7 @@ export default function CourseDetail({ api, course, onError, onCourseChanged, on
         <Dialog
           icon="refresh"
           title={`Buat kode akses baru untuk ${course.name}?`}
-          text="Kode lama langsung tidak berlaku dan mahasiswa harus memasukkan kode baru."
+          text="Kode lama langsung tidak berlaku untuk yang mau bergabung. Mahasiswa yang sudah tergabung tidak terpengaruh dan tetap bisa mengikuti kelas."
           confirmLabel="Ya, buat kode baru"
           onCancel={() => setConfirm(null)}
           onConfirm={() => run(() => api.regenerateCode(course.id), { reloadCourses: true })}
@@ -304,6 +308,17 @@ export default function CourseDetail({ api, course, onError, onCourseChanged, on
           confirmLabel="Ya, hapus permanen"
           onCancel={() => setConfirm(null)}
           onConfirm={() => run(() => api.deleteMeeting(deletingMeeting.id), { reloadCourses: true })}
+        />
+      )}
+
+      {confirm === "revoke" && (
+        <Dialog
+          icon="logout"
+          title={`Keluarkan semua mahasiswa dari ${course.name}?`}
+          text="Mata kuliah ini hilang dari daftar mereka dan harus digabungkan lagi memakai kode yang berlaku sekarang. Akun mahasiswa tidak terhapus, dan sesi yang sedang berjalan ikut terputus."
+          confirmLabel="Ya, keluarkan semua"
+          onCancel={() => setConfirm(null)}
+          onConfirm={() => run(() => api.revokeStudents(course.id))}
         />
       )}
 

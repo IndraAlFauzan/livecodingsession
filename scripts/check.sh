@@ -49,7 +49,7 @@ judul "Backend"
   for _ in $(seq 1 30); do siap && break; sleep 1; done
   siap || { echo "server tidak siap"; cat /tmp/check-backend.log; exit 1; }
   BACKEND_URL="http://localhost:$PORT_UJI" TEACHER_TOKEN="$TOKEN_UJI" npm test > /tmp/check-smoke.log 2>&1
-) && lolos "smoke test (35 pengecekan)" || { tidak "backend smoke test"; tail -5 /tmp/check-smoke.log 2>/dev/null | sed 's/^/        /'; }
+) && lolos "smoke test ($(grep -c '  ok  ' /tmp/check-smoke.log) pengecekan)" || { tidak "backend smoke test"; tail -5 /tmp/check-smoke.log 2>/dev/null | sed 's/^/        /'; }
 
 # ---------- extension ----------
 judul "Extension"

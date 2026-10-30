@@ -2,6 +2,14 @@ const express = require('express');
 const db = require('./db');
 const live = require('./live');
 const { requireTeacherToken } = require('./auth');
+const { hashPassword, verifyPassword, newSessionToken, tempPassword, cleanNim, checkPassword } = require('./studentAuth');
+const throttle = require('./loginThrottle');
+
+// Express 4 tidak menangkap penolakan promise dari handler async; pembungkus ini
+// meneruskannya ke penangan galat supaya tidak jadi permintaan yang menggantung.
+function aman(handler) {
+  return (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
+}
 
 function cleanText(value, maxLength) {
   if (typeof value !== 'string') return null;
@@ -81,6 +89,49 @@ admin.post('/courses/:id/regenerate-code', (req, res) => {
   const course = db.regenerateAccessCode(Number(req.params.id));
   if (!course) return res.status(404).json({ error: 'Mata kuliah tidak ditemukan.' });
   res.json({ course });
+});
+
+admin.get('/courses/:id/students', loadCourse, (req, res) => {
+  res.json({ students: db.listCourseStudents(req.course.id) });
+});
+
+// Dosen tidak bisa membaca kata sandi siapa pun; yang bisa dilakukan hanya
+// menggantinya dengan yang baru. Sandi itu dikembalikan sekali di sini untuk
+// dibacakan ke mahasiswa, dan tidak pernah bisa dibaca lagi sesudahnya.
+admin.post(
+  '/students/:nim/reset-password',
+  aman(async (req, res) => {
+    const nim = cleanNim(req.params.nim);
+    const akun = nim ? db.getStudentRowByNim(nim) : null;
+    if (!akun) return res.status(404).json({ error: 'Mahasiswa tidak ditemukan.' });
+
+    const sandi = tempPassword();
+    db.setStudentPassword(akun.id, await hashPassword(sandi));
+    // Semua perangkat dikeluarkan: kalau akunnya memang diambil alih orang lain,
+    // mengganti sandi saja tidak memutus sesi yang sudah terlanjur berjalan.
+    const sesiDicabut = db.deleteSessionsOfStudent(akun.id);
+    throttle.hapusCatatan(nim);
+
+    res.json({ student: { nim: akun.nim, name: akun.name }, password: sandi, sessionsRevoked: sesiDicabut });
+  }),
+);
+
+// Jalan keluar untuk akun yang salah daftar; sesi dan riwayatnya ikut terhapus
+// lewat ON DELETE CASCADE.
+admin.delete('/students/:nim', (req, res) => {
+  const nim = cleanNim(req.params.nim);
+  const akun = nim ? db.getStudentRowByNim(nim) : null;
+  if (!akun) return res.status(404).json({ error: 'Mahasiswa tidak ditemukan.' });
+  db.deleteStudent(akun.id);
+  res.status(204).end();
+});
+
+admin.delete('/courses/:id/students', loadCourse, (req, res) => {
+  const dicabut = db.clearEnrollments(req.course.id);
+  for (const meeting of db.listMeetings(req.course.id)) {
+    live.kickStudents(meeting.id, 'Dosen mengeluarkan semua mahasiswa. Masuk lagi dengan kode terbaru.');
+  }
+  res.json({ revoked: dicabut });
 });
 
 admin.delete('/courses/:id', loadCourse, (req, res) => {
@@ -171,16 +222,109 @@ admin.delete('/meetings/:id', loadMeeting, (req, res) => {
 
 const student = express.Router();
 
-student.post('/access', (req, res) => {
+function toSessionReply(student, token) {
+  return { student: { nim: student.nim, name: student.name }, token };
+}
+
+// Identitas diambil dari tanda sesi di server, tidak pernah dari badan permintaan;
+// inilah yang menutup celah masuk memakai nama orang lain.
+function requireStudent(req, res, next) {
+  const akun = db.getStudentBySession(req.get('x-student-token'));
+  if (!akun) return res.status(401).json({ error: 'Silakan masuk dulu.' });
+  req.student = akun;
+  next();
+}
+
+student.post(
+  '/register',
+  aman(async (req, res) => {
+    const nim = cleanNim(req.body?.nim);
+    if (!nim) return res.status(400).json({ error: 'NIM harus 5-20 huruf atau angka.' });
+
+    const name = cleanText(req.body?.name, 100);
+    if (!name) return res.status(400).json({ error: 'Nama tidak valid.' });
+
+    const keluhan = checkPassword(req.body?.password);
+    if (keluhan) return res.status(400).json({ error: keluhan });
+
+    if (db.getStudentRowByNim(nim)) {
+      return res.status(409).json({ error: 'NIM ini sudah terdaftar. Silakan masuk.' });
+    }
+
+    const akun = db.createStudent({ nim, name, passwordHash: await hashPassword(req.body.password) });
+    const token = db.createSession(akun.id, newSessionToken());
+    db.markStudentLogin(akun.id);
+    res.status(201).json(toSessionReply(akun, token));
+  }),
+);
+
+student.post(
+  '/login',
+  aman(async (req, res) => {
+    const nim = cleanNim(req.body?.nim);
+
+    const sisa = nim ? throttle.sisaKuncian(nim) : 0;
+    if (sisa > 0) {
+      const menit = Math.ceil(sisa / 60000);
+      return res
+        .status(429)
+        .set('retry-after', String(Math.ceil(sisa / 1000)))
+        .json({ error: `Terlalu banyak percobaan. Coba lagi dalam ${menit} menit.` });
+    }
+
+    const baris = nim ? db.getStudentRowByNim(nim) : null;
+    // Pesan yang sama untuk NIM tak dikenal dan sandi salah, supaya tidak bisa
+    // dipakai menebak NIM mana yang terdaftar.
+    const salah = () => {
+      if (nim) throttle.catatGagal(nim);
+      return res.status(401).json({ error: 'NIM atau kata sandi salah.' });
+    };
+    if (!baris) return salah();
+    if (!(await verifyPassword(req.body?.password ?? '', baris.password_hash))) return salah();
+
+    throttle.hapusCatatan(nim);
+    const token = db.createSession(baris.id, newSessionToken());
+    db.markStudentLogin(baris.id);
+    res.json(toSessionReply(baris, token));
+  }),
+);
+
+student.post('/logout', (req, res) => {
+  db.deleteSession(req.get('x-student-token') ?? '');
+  res.status(204).end();
+});
+
+student.get('/me', requireStudent, (req, res) => {
+  res.json({ student: { nim: req.student.nim, name: req.student.name }, courses: db.listEnrolledCourses(req.student.id) });
+});
+
+// Kode kelas dipakai sekali saat bergabung. Sesudahnya yang berlaku adalah
+// pendaftaran, jadi dosen bisa mengganti kode tanpa melempar keluar yang sudah masuk.
+student.post('/courses', requireStudent, (req, res) => {
   const course = db.getCourseByActiveCode(req.body?.code);
   if (!course) return res.status(404).json({ error: 'Kode akses tidak valid atau sudah dinonaktifkan.' });
+
+  db.enrollStudent(course.id, req.student.id);
   res.json({ course: { slug: course.slug, name: course.name } });
 });
 
-student.get('/courses/:slug', (req, res) => {
-  const course = db.getCourseByActiveCode(req.get('x-access-code'));
-  if (!course || course.slug !== req.params.slug) {
-    return res.status(403).json({ error: 'Kode akses tidak valid untuk mata kuliah ini.' });
+student.get('/courses', requireStudent, (req, res) => {
+  res.json({ courses: db.listEnrolledCourses(req.student.id) });
+});
+
+// Keluar dari kelas: riwayatnya hilang dari daftar, tapi akunnya tetap. Untuk
+// masuk lagi mahasiswa perlu kode akses yang berlaku saat itu.
+student.delete('/courses/:slug', requireStudent, (req, res) => {
+  const course = db.getCourseBySlug(req.params.slug);
+  if (!course) return res.status(404).json({ error: 'Mata kuliah tidak ditemukan.' });
+  db.unenrollStudent(course.id, req.student.id);
+  res.status(204).end();
+});
+
+student.get('/courses/:slug', requireStudent, (req, res) => {
+  const course = db.getCourseBySlug(req.params.slug);
+  if (!course || !db.isEnrolled(course.id, req.student.id)) {
+    return res.status(403).json({ error: 'Kamu belum bergabung di mata kuliah ini.' });
   }
   res.json({
     course: { slug: course.slug, name: course.name },

@@ -4,9 +4,22 @@ Backend Node.js (Express + WebSocket + SQLite) yang menerima kode dari VS Code E
 
 ## Konsep
 
-- **Mata kuliah** punya kode akses sendiri (misalnya `PM-7K3XQ2`). Mahasiswa hanya bisa membuka mata kuliah yang kodenya mereka punya.
+- **Akun mahasiswa** berisi NIM, nama, dan kata sandi (scrypt, versi async supaya satu kelas yang login bersamaan tidak memblokir event loop). Identitas di sesi live selalu diambil dari akun, tidak pernah dari kiriman klien.
+- **Mata kuliah** punya kode akses sendiri (misalnya `PM-7K3XQ2`). Kode dipakai sekali untuk bergabung; sesudah itu yang berlaku adalah keanggotaan, jadi dosen bisa mengganti kode tanpa melempar keluar yang sudah masuk.
 - **Pertemuan** menyimpan snapshot kode terakhir. Status: `draft` (belum dimulai), `live`, `finished`. Bisa ditampilkan atau disembunyikan.
 - **Lanjutan**: pertemuan bisa menandai `continuesFrom` pertemuan lain. File diberi label `new`/`modified` dibanding pertemuan tersebut.
+
+## Kata sandi
+
+Dosen tidak bisa membaca kata sandi siapa pun. Yang tersedia hanya reset: server membuat
+sandi sementara, mengembalikannya sekali untuk dibacakan, lalu mengeluarkan semua perangkat
+mahasiswa itu.
+
+Percobaan masuk dibatasi 10 kegagalan per 10 menit, **dihitung per NIM, bukan per alamat IP** —
+satu kelas biasanya keluar lewat satu NAT kampus, jadi pembatasan per IP akan mengunci seisi
+kelas sekaligus. Konsekuensinya orang yang tahu NIM teman bisa menghalanginya masuk selama
+jendela itu; karena itu jendelanya pendek, hitungannya hangus begitu sandi yang benar masuk,
+dan reset oleh dosen langsung membukanya. Hitungan disimpan di memori, hilang saat restart.
 
 ## Menjalankan
 
@@ -78,13 +91,27 @@ Admin (header `Authorization: Bearer <TEACHER_TOKEN>`):
 | POST | `/api/admin/courses/:id/meetings` | `{ title?, number? }` |
 | PATCH | `/api/admin/meetings/:id` | `{ title?, visible?, number? }` |
 | DELETE | `/api/admin/meetings/:id` | Ditolak bila sedang live |
+| DELETE | `/api/admin/courses/:id/students` | Lepas semua keanggotaan kelas (akun tetap ada) |
+| GET | `/api/admin/courses/:id/students` | Daftar anggota kelas |
+| POST | `/api/admin/students/:nim/reset-password` | Sandi sementara baru, dikembalikan sekali |
+| DELETE | `/api/admin/students/:nim` | Hapus akun beserta sesi dan riwayatnya |
 
 Mahasiswa:
 
 | Method | Path | Keterangan |
 |---|---|---|
-| POST | `/api/student/access` | `{ code }` → mata kuliah |
-| GET | `/api/student/courses/:slug` | Header `X-Access-Code`; pertemuan yang tampil dan sudah dimulai |
+Semua rute di bawah `/me` dan `/courses` butuh header `X-Student-Token` dari hasil daftar/masuk.
+
+| Method | Path | Keterangan |
+|---|---|---|
+| POST | `/api/student/register` | `{ nim, name, password }` → `{ student, token }` |
+| POST | `/api/student/login` | `{ nim, password }` → `{ student, token }` |
+| POST | `/api/student/logout` | Mematikan tanda sesi perangkat ini saja |
+| GET | `/api/student/me` | Akun beserta riwayat mata kuliah |
+| POST | `/api/student/courses` | `{ code }` → bergabung ke mata kuliah |
+| GET | `/api/student/courses` | Riwayat mata kuliah |
+| GET | `/api/student/courses/:slug` | Pertemuan yang tampil; 403 bila belum bergabung |
+| DELETE | `/api/student/courses/:slug` | Keluar dari mata kuliah (akun tetap) |
 
 ## WebSocket
 
@@ -92,7 +119,7 @@ Mahasiswa:
 |---|---|---|
 | `teacher:join` | dosen | `meetingId, teacherToken, projectName, continuesFrom` |
 | `teacher:joined` | server | `studentUrl, accessCode, courseName` |
-| `student:join` | mahasiswa | `meetingId, accessCode` |
+| `student:join` | mahasiswa | `meetingId, studentToken` (nama diambil dari akun) |
 | `session:init` | server | `course, meeting, tree, activeFile, changes, hasTeacher` |
 | `project:snapshot`, `tree:update` | dosen | `tree` |
 | `file:create`, `file:update` | dosen | `path, content, language` (diteruskan dengan `change`) |

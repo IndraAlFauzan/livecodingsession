@@ -4,7 +4,7 @@ import Card from "../ui/Card.jsx";
 import Icon from "../ui/Icon.jsx";
 import { toneForCourse } from "../layout/Sidebar.jsx";
 
-export default function CourseCard({ name, detail, live, meetingCount, onOpen, onJoinLive, onForget }) {
+export default function CourseCard({ name, detail, live, meetingCount, onOpen, onJoinLive, onLeave }) {
   const tone = toneForCourse(name);
   return (
     <Card className="lc-course">
@@ -39,8 +39,8 @@ export default function CourseCard({ name, detail, live, meetingCount, onOpen, o
         <Button variant="secondary" block onClick={onOpen}>
           Buka
         </Button>
-        <Button variant="ghost" size="sm" block onClick={onForget}>
-          Lupakan
+        <Button variant="ghost" size="sm" block onClick={onLeave}>
+          Keluar dari kelas
         </Button>
       </div>
     </Card>

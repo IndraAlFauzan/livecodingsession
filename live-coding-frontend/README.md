@@ -6,10 +6,23 @@ Web untuk mahasiswa (melihat kode dosen) dan halaman admin dosen. React + Vite +
 
 | URL | Untuk | Isi |
 |---|---|---|
-| `/` | mahasiswa | Masukkan nama dan kode akses mata kuliah |
+| `/` | mahasiswa | Masuk/daftar akun, lalu gabung mata kuliah dengan kode akses |
 | `/mk/:slug` | mahasiswa | Daftar pertemuan (Live/Selesai, label lanjutan) |
 | `/mk/:slug/p/:id` | mahasiswa | Viewer kode: real-time saat live, arsip read-only setelah selesai |
 | `/admin` | dosen | Kelola mata kuliah, kode akses, dan pertemuan (login dengan teacher token) |
+
+## Akun mahasiswa
+
+Mahasiswa masuk dengan NIM dan kata sandi. Tanda sesinya disimpan di `localStorage`
+(`lc.studentToken`), tapi daftar mata kuliah tidak — riwayat itu milik akun dan selalu
+diambil dari server, jadi tetap sama saat berpindah perangkat.
+
+`StudentAuthProvider` (`hooks/useStudentAuth.jsx`) adalah satu-satunya sumber identitas;
+`StudentGate` menahan semua halaman mahasiswa selama belum masuk. Kode akses mata kuliah
+hanya dipakai sekali untuk bergabung — sesudah itu yang berlaku keanggotaan, sehingga dosen
+bisa mengganti kode tanpa melempar keluar yang sudah di dalam.
+
+Nama yang tampil di sesi live datang dari akun di sisi server, bukan dari kiriman klien.
 
 ## Perlindungan kode
 
@@ -26,10 +39,13 @@ Vitest dengan jsdom. Yang diutamakan adalah perilaku yang mahal kalau rusak:
 
 | Berkas | Yang dijaga |
 |---|---|
-| `hooks/useLiveSession.test.js` | percakapan WebSocket: join membawa nama, Follow Dosen, bedanya menunggu dan selesai, penolakan server |
+| `hooks/useLiveSession.test.js` | percakapan WebSocket: join membawa tanda sesi (bukan nama), Follow Dosen, bedanya menunggu dan selesai, penolakan server |
+| `hooks/useStudentAuth.test.jsx` | pemulihan sesi tersimpan, 401 vs gagal jaringan, keluar, gabung/keluar kelas |
+| `components/student/AuthCard.test.jsx` | tab masuk/daftar, validasi sandi, kolom nama hanya saat mendaftar |
 | `utils/meetingStatus.test.js` | status pertemuan, termasuk masa tenggang yang dulu salah dihitung |
 | `components/ui/Dialog.test.jsx` | fokus awal di Batal, Esc, jebakan Tab, aria |
-| `components/student/JoinCard.test.jsx` | validasi, kode jadi huruf besar, kode mata kuliah lain ditolak |
+| `components/student/JoinCard.test.jsx` | validasi kode, huruf besar otomatis, kode mata kuliah lain ditolak |
+| `components/admin/StudentRoster.test.jsx` | konfirmasi sebelum reset, baris yang benar yang direset, sandi sementara hanya tampil sekali |
 
 `src/test/fakeWebSocket.js` adalah WebSocket tiruan yang dikemudikan tes — tidak ada koneksi sungguhan.
 

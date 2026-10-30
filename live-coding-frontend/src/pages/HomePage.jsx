@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import AuthAside from "../components/layout/AuthAside.jsx";
-import AuthLayout from "../components/layout/AuthLayout.jsx";
 import Brand from "../components/layout/Brand.jsx";
 import InstitutionMarks from "../components/layout/InstitutionMarks.jsx";
 import CourseCard from "../components/student/CourseCard.jsx";
 import JoinCard from "../components/student/JoinCard.jsx";
+import { Button, Card, Dialog, EmptyState } from "../components/ui/index.js";
+import { useStudentAuth } from "../hooks/useStudentAuth.jsx";
 import { studentApi } from "../lib/api.js";
-import { storage } from "../lib/storage.js";
 import Copyright from "../utils/copyright.jsx";
 
 const REFRESH_MS = 30000;
@@ -16,18 +15,20 @@ function meetingName(meeting) {
   return meeting.title ? `Pertemuan ${meeting.number}, ${meeting.title}` : `Pertemuan ${meeting.number}`;
 }
 
-function SavedCourse({ slug, course, onForget }) {
+function EnrolledCourse({ course, onLeave }) {
   const navigate = useNavigate();
+  const { token } = useStudentAuth();
   const [state, setState] = useState({ kind: "loading" });
+  const { slug } = course;
 
   const load = useCallback(async () => {
     try {
-      const { meetings } = await studentApi.course(slug, course.code);
+      const { meetings } = await studentApi.course(token, slug);
       setState({ kind: "ready", meetings });
     } catch (err) {
       setState({ kind: err.status === 403 ? "revoked" : "error", message: err.message });
     }
-  }, [slug, course.code]);
+  }, [token, slug]);
 
   useEffect(() => {
     load();
@@ -41,7 +42,7 @@ function SavedCourse({ slug, course, onForget }) {
 
   let detail;
   if (state.kind === "loading") detail = "Memeriksa pertemuan...";
-  else if (state.kind === "revoked") detail = "Kode akses sudah diganti dosen. Buka untuk memasukkan kode baru.";
+  else if (state.kind === "revoked") detail = "Kamu sudah dikeluarkan dari mata kuliah ini.";
   else if (state.kind === "error") detail = "Status pertemuan tidak bisa dimuat.";
   else if (live) detail = `${meetingName(live)} sedang berlangsung.`;
   else if (latest) detail = `Terakhir: ${meetingName(latest)}.`;
@@ -55,37 +56,22 @@ function SavedCourse({ slug, course, onForget }) {
       meetingCount={state.kind === "ready" ? meetings.length : null}
       onOpen={() => navigate(`/mk/${slug}`)}
       onJoinLive={() => navigate(`/mk/${slug}/p/${live.id}`)}
-      onForget={() => onForget(slug)}
+      onLeave={() => onLeave(course)}
     />
   );
 }
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const [saved, setSaved] = useState(() => storage.getCourses());
-  const entries = Object.entries(saved);
-  const studentName = storage.getStudentName();
-
-  function forget(slug) {
-    storage.forgetCourse(slug);
-    setSaved(storage.getCourses());
-  }
+  const { student, courses, logout, leaveCourse } = useStudentAuth();
+  const [akanKeluar, setAkanKeluar] = useState(null);
 
   const openCourse = (course) => navigate(`/mk/${course.slug}`);
 
-  if (entries.length === 0) {
-    return (
-      <AuthLayout
-        note="Kode di halaman kelas hanya bisa dibaca. Salin, klik kanan, dan cetak dimatikan selama kamu melihatnya."
-        aside={
-          <AuthAside
-            title="Lihat kode dosen langsung, baris demi baris."
-            text="Saat dosen menyorot sebuah baris di VS Code, sorotan itu muncul di layarmu detik itu juga."
-          />
-        }>
-        <JoinCard heading="h1" onSuccess={openCourse} />
-      </AuthLayout>
-    );
+  async function konfirmasiKeluar() {
+    const slug = akanKeluar.slug;
+    setAkanKeluar(null);
+    await leaveCourse(slug);
   }
 
   return (
@@ -99,18 +85,43 @@ export default function HomePage() {
             <div className="lc-pagehead__text">
               <h1 className="lc-h1">Mata kuliahmu</h1>
               <p className="lc-sub">
-                {studentName ? `Masuk sebagai ${studentName}.` : "Yang pernah kamu buka di perangkat ini."}
+                {student ? `Masuk sebagai ${student.name} (${student.nim}).` : "Memuat akun..."}
               </p>
             </div>
+            <Button variant="secondary" icon="logout" onClick={logout}>
+              Keluar
+            </Button>
           </div>
 
-          <div className="lc-cards">
-            {entries.map(([slug, course]) => (
-              <SavedCourse key={slug} slug={slug} course={course} onForget={forget} />
-            ))}
-          </div>
+          {courses.length === 0 ? (
+            <Card>
+              <EmptyState
+                icon="book"
+                title="Belum ikut mata kuliah apa pun."
+                text="Masukkan kode akses dari dosen untuk bergabung. Setelah itu mata kuliahnya tersimpan di akunmu."
+              />
+            </Card>
+          ) : (
+            <div className="lc-cards">
+              {courses.map((course) => (
+                <EnrolledCourse key={course.slug} course={course} onLeave={setAkanKeluar} />
+              ))}
+            </div>
+          )}
         </div>
       </div>
+
+      {akanKeluar && (
+        <Dialog
+          icon="logout"
+          title={`Keluar dari ${akanKeluar.name}?`}
+          text="Mata kuliah ini hilang dari daftarmu. Untuk masuk lagi kamu butuh kode akses yang berlaku saat itu."
+          confirmLabel="Ya, keluar dari kelas"
+          onCancel={() => setAkanKeluar(null)}
+          onConfirm={konfirmasiKeluar}
+        />
+      )}
+
       <footer className="lc-page__foot">
         <InstitutionMarks />
         <Copyright />

@@ -52,3 +52,24 @@
   line-height: 17px;
   color: var(--muted);
 }
+
+/* Dua aksi kode akses berdampingan; melipat di kartu sempit. */
+.lc-code__actions {
+  justify-content: flex-start;
+  gap: var(--space-2);
+}
+
+/* Kata sandi sementara hasil reset: ditampilkan sekali, jadi harus terbaca
+   jelas saat dibacakan ke mahasiswa. */
+.lc-newpass {
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  letter-spacing: 0.08em;
+  text-align: center;
+  margin: var(--space-4) 0;
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  color: var(--ink);
+  user-select: all;
+}

@@ -25,10 +25,20 @@ async function request(path, { method = "GET", body, headers = {} } = {}) {
   return data;
 }
 
+const auth = (token) => (token ? { "x-student-token": token } : {});
+
 export const studentApi = {
-  access: (code) => request("/api/student/access", { method: "POST", body: { code } }),
-  course: (slug, code) =>
-    request(`/api/student/courses/${encodeURIComponent(slug)}`, { headers: { "x-access-code": code } }),
+  register: (nim, name, password) =>
+    request("/api/student/register", { method: "POST", body: { nim, name, password } }),
+  login: (nim, password) => request("/api/student/login", { method: "POST", body: { nim, password } }),
+  logout: (token) => request("/api/student/logout", { method: "POST", headers: auth(token) }),
+  me: (token) => request("/api/student/me", { headers: auth(token) }),
+  joinCourse: (token, code) =>
+    request("/api/student/courses", { method: "POST", headers: auth(token), body: { code } }),
+  course: (token, slug) =>
+    request(`/api/student/courses/${encodeURIComponent(slug)}`, { headers: auth(token) }),
+  leaveCourse: (token, slug) =>
+    request(`/api/student/courses/${encodeURIComponent(slug)}`, { method: "DELETE", headers: auth(token) }),
 };
 
 export function adminApi(token) {
@@ -46,6 +56,9 @@ export function adminApi(token) {
     createMeeting: (courseId, data) => call("POST", `/courses/${courseId}/meetings`, data),
     updateMeeting: (id, changes) => call("PATCH", `/meetings/${id}`, changes),
     deleteMeeting: (id) => call("DELETE", `/meetings/${id}`),
+    revokeStudents: (courseId) => call("DELETE", `/courses/${courseId}/students`),
+    courseStudents: (courseId) => call("GET", `/courses/${courseId}/students`),
+    resetStudentPassword: (nim) => call("POST", `/students/${encodeURIComponent(nim)}/reset-password`),
     meetingViewers: (id) => call("GET", `/meetings/${id}/viewers`),
   };
 }

@@ -1,22 +1,22 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import AccessGate from "../components/AccessGate.jsx";
+import JoinGate from "../components/JoinGate.jsx";
 import SessionHeader from "../components/session/SessionHeader.jsx";
 import ProtectedArea from "../components/ProtectedArea.jsx";
 import CodePanel from "../components/session/CodePanel.jsx";
 import FileTree from "../components/session/FileTree.jsx";
 import SessionBar from "../components/session/SessionBar.jsx";
 import { Card, EmptyState, Icon } from "../components/ui/index.js";
-import { getCourseAccess, storage } from "../lib/storage.js";
+import { useStudentAuth } from "../hooks/useStudentAuth.jsx";
 import useLiveSession from "../hooks/useLiveSession.js";
 
 export default function MeetingPage() {
   const { slug, meetingId } = useParams();
-  const [access, setAccess] = useState(() => getCourseAccess(slug));
+  const { student, token, logout } = useStudentAuth();
   const [gateMessage, setGateMessage] = useState(null);
 
-  if (!access) {
-    return <AccessGate slug={slug} message={gateMessage} onSuccess={() => setAccess(getCourseAccess(slug))} />;
+  if (gateMessage) {
+    return <JoinGate slug={slug} message={gateMessage} onSuccess={() => setGateMessage(null)} />;
   }
 
   return (
@@ -24,17 +24,15 @@ export default function MeetingPage() {
       key={meetingId}
       slug={slug}
       meetingId={meetingId}
-      access={access}
-      onAccessRevoked={(message) => {
-        storage.forgetCourse(slug);
-        setGateMessage(message);
-        setAccess(null);
-      }}
+      token={token}
+      studentName={student?.name || ""}
+      onAccessRevoked={setGateMessage}
+      onSessionExpired={logout}
     />
   );
 }
 
-function MeetingViewer({ slug, meetingId, access, onAccessRevoked }) {
+function MeetingViewer({ slug, meetingId, token, studentName, onAccessRevoked, onSessionExpired }) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const {
     connectionStatus,
@@ -55,7 +53,7 @@ function MeetingViewer({ slug, meetingId, access, onAccessRevoked }) {
     closedMessage,
     teacherWaiting,
     openFile,
-  } = useLiveSession({ meetingId, access, onAccessRevoked });
+  } = useLiveSession({ meetingId, token, onAccessRevoked, onSessionExpired });
 
   function selectFile(path) {
     openFile(path);
@@ -81,7 +79,7 @@ function MeetingViewer({ slug, meetingId, access, onAccessRevoked }) {
   }
 
   const isLive = meeting?.status === "live" && hasTeacher;
-  const courseName = course?.name || access.courseName;
+  const courseName = course?.name || "Mata kuliah";
   const changeCount = Object.keys(changes).length;
   const highlights = isLive && teacherSelection?.path === selectedFile ? teacherSelection.selections : null;
 
@@ -102,7 +100,7 @@ function MeetingViewer({ slug, meetingId, access, onAccessRevoked }) {
               </Link>
             )
           }
-          student={access.studentName}
+          student={studentName}
         />
 
         {teacherWaiting && (
@@ -160,7 +158,7 @@ function MeetingViewer({ slug, meetingId, access, onAccessRevoked }) {
           teacherFile={activeFile}
           follow={followTeacher}
           onFollowChange={setFollowTeacher}
-          student={access.studentName}
+          student={studentName}
           isLive={isLive}
           language={selectedFile ? files[selectedFile]?.language : null}
         />

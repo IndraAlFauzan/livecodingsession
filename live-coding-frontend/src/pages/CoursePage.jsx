@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import AccessGate from "../components/AccessGate.jsx";
+import JoinGate from "../components/JoinGate.jsx";
 import Brand from "../components/layout/Brand.jsx";
 import MeetingCard from "../components/admin/MeetingCard.jsx";
 import { Button, Card, EmptyState, Tabs } from "../components/ui/index.js";
+import { useStudentAuth } from "../hooks/useStudentAuth.jsx";
 import { formatDateTime, studentApi } from "../lib/api.js";
-import { getCourseAccess, storage } from "../lib/storage.js";
 import Copyright from "../utils/copyright.jsx";
 
 const REFRESH_MS = 15000;
@@ -19,27 +19,27 @@ const FILTERS = [
 export default function CoursePage() {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const [access, setAccess] = useState(() => getCourseAccess(slug));
-  const [gateMessage, setGateMessage] = useState(null);
+  const { student, token, refresh } = useStudentAuth();
+  const [belumGabung, setBelumGabung] = useState(false);
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState(0);
 
   const load = useCallback(async () => {
-    if (!access) return;
     try {
-      setData(await studentApi.course(slug, access.code));
+      setData(await studentApi.course(token, slug));
+      setBelumGabung(false);
       setError(null);
     } catch (err) {
+      // 403 di sini berarti belum (atau tidak lagi) jadi anggota -- bukan galat,
+      // tapi pintu yang perlu dibuka dengan kode akses.
       if (err.status === 403) {
-        storage.forgetCourse(slug);
-        setGateMessage("Kode akses sudah diganti atau dinonaktifkan dosen. Minta kode terbaru.");
-        setAccess(null);
+        setBelumGabung(true);
         return;
       }
       setError(err.message);
     }
-  }, [slug, access]);
+  }, [slug, token]);
 
   useEffect(() => {
     load();
@@ -47,11 +47,20 @@ export default function CoursePage() {
     return () => clearInterval(timer);
   }, [load]);
 
-  if (!access) {
-    return <AccessGate slug={slug} message={gateMessage} onSuccess={() => setAccess(getCourseAccess(slug))} />;
+  if (belumGabung) {
+    return (
+      <JoinGate
+        slug={slug}
+        message="Kamu belum tergabung di mata kuliah ini. Masukkan kode aksesnya dari dosen."
+        onSuccess={() => {
+          setBelumGabung(false);
+          refresh();
+        }}
+      />
+    );
   }
 
-  const courseName = data?.course.name || access.courseName;
+  const courseName = data?.course.name || "Mata kuliah";
   // Terbaru di atas: di akhir semester mahasiswa paling sering mencari pertemuan terakhir.
   const meetings = [...(data?.meetings || [])].sort((a, b) => b.number - a.number);
   const live = meetings.find((meeting) => meeting.status === "live") || null;
@@ -92,7 +101,7 @@ export default function CoursePage() {
         <div className="lc-pagehead">
           <div className="lc-pagehead__text">
             <h1 className="lc-h1">{courseName}</h1>
-            <p className="lc-sub">Masuk sebagai {access.studentName}</p>
+            <p className="lc-sub">{student ? `Masuk sebagai ${student.name} (${student.nim})` : ""}</p>
           </div>
           <Button variant="secondary" icon="chevron-left" onClick={() => navigate("/")}>
             Beranda

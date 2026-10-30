@@ -178,6 +178,120 @@ function regenerateAccessCode(id) {
   return getCourseById(id);
 }
 
+// ---------- akun mahasiswa ----------
+
+function toStudent(row) {
+  if (!row) return null;
+  return { id: row.id, nim: row.nim, name: row.name, createdAt: row.created_at, lastLogin: row.last_login };
+}
+
+function createStudent({ nim, name, passwordHash }) {
+  const at = now();
+  const info = db
+    .prepare('INSERT INTO students (nim, name, password_hash, created_at) VALUES (?, ?, ?, ?)')
+    .run(nim, name, passwordHash, at);
+  return getStudentById(info.lastInsertRowid);
+}
+
+function getStudentById(id) {
+  return toStudent(db.prepare('SELECT * FROM students WHERE id = ?').get(id));
+}
+
+// Mengembalikan baris mentah karena pemanggil butuh password_hash untuk diperiksa.
+function getStudentRowByNim(nim) {
+  return db.prepare('SELECT * FROM students WHERE nim = ?').get(nim) || null;
+}
+
+function markStudentLogin(id) {
+  db.prepare('UPDATE students SET last_login = ? WHERE id = ?').run(now(), id);
+}
+
+function deleteStudent(id) {
+  return db.prepare('DELETE FROM students WHERE id = ?').run(id).changes > 0;
+}
+
+function setStudentPassword(id, passwordHash) {
+  db.prepare('UPDATE students SET password_hash = ? WHERE id = ?').run(passwordHash, id);
+}
+
+// ---------- sesi perangkat ----------
+
+function createSession(studentId, token) {
+  const at = now();
+  db.prepare('INSERT INTO student_sessions (token, student_id, created_at, last_seen) VALUES (?, ?, ?, ?)').run(
+    token,
+    studentId,
+    at,
+    at,
+  );
+  return token;
+}
+
+function getStudentBySession(token) {
+  if (typeof token !== 'string' || !token) return null;
+  const row = db
+    .prepare('SELECT s.* FROM students s JOIN student_sessions t ON t.student_id = s.id WHERE t.token = ?')
+    .get(token);
+  if (!row) return null;
+  db.prepare('UPDATE student_sessions SET last_seen = ? WHERE token = ?').run(now(), token);
+  return toStudent(row);
+}
+
+function deleteSession(token) {
+  db.prepare('DELETE FROM student_sessions WHERE token = ?').run(token);
+}
+
+// Dipakai saat sandi diganti atau direset: semua perangkat harus masuk lagi.
+function deleteSessionsOfStudent(studentId) {
+  return db.prepare('DELETE FROM student_sessions WHERE student_id = ?').run(studentId).changes;
+}
+
+// ---------- mata kuliah yang diikuti ----------
+
+function enrollStudent(courseId, studentId) {
+  db.prepare(
+    `INSERT INTO course_enrollments (course_id, student_id, joined_at) VALUES (?, ?, ?)
+     ON CONFLICT (course_id, student_id) DO NOTHING`,
+  ).run(courseId, studentId, now());
+}
+
+function isEnrolled(courseId, studentId) {
+  return Boolean(
+    db.prepare('SELECT 1 FROM course_enrollments WHERE course_id = ? AND student_id = ?').get(courseId, studentId),
+  );
+}
+
+// Inilah riwayat yang melekat pada akun, menggantikan daftar di localStorage.
+function listEnrolledCourses(studentId) {
+  return db
+    .prepare(
+      `SELECT c.slug, c.name, e.joined_at AS joinedAt
+       FROM course_enrollments e JOIN courses c ON c.id = e.course_id
+       WHERE e.student_id = ? ORDER BY e.joined_at DESC`,
+    )
+    .all(studentId);
+}
+
+// Daftar anggota kelas untuk halaman dosen.
+function listCourseStudents(courseId) {
+  return db
+    .prepare(
+      `SELECT s.nim, s.name, e.joined_at AS joinedAt, s.last_login AS lastLogin
+       FROM course_enrollments e JOIN students s ON s.id = e.student_id
+       WHERE e.course_id = ? ORDER BY s.name COLLATE NOCASE`,
+    )
+    .all(courseId);
+}
+
+// Dipakai tombol "Keluarkan semua": riwayat kelas dilepas, akunnya tetap ada.
+function clearEnrollments(courseId) {
+  return db.prepare('DELETE FROM course_enrollments WHERE course_id = ?').run(courseId).changes;
+}
+
+function unenrollStudent(courseId, studentId) {
+  db.prepare('DELETE FROM course_enrollments WHERE course_id = ? AND student_id = ?').run(courseId, studentId);
+}
+
 function deleteCourse(id) {
   db.prepare('DELETE FROM courses WHERE id = ?').run(id);
   cleanupOrphanBlobs();
@@ -377,6 +491,22 @@ module.exports = {
   deleteMeeting,
   startMeeting,
   finishMeeting,
+  createStudent,
+  getStudentById,
+  getStudentRowByNim,
+  markStudentLogin,
+  setStudentPassword,
+  deleteStudent,
+  createSession,
+  getStudentBySession,
+  deleteSession,
+  deleteSessionsOfStudent,
+  enrollStudent,
+  isEnrolled,
+  listEnrolledCourses,
+  unenrollStudent,
+  clearEnrollments,
+  listCourseStudents,
   recordViewer,
   listViewers,
   setMeetingTree,

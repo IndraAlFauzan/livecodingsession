@@ -3,7 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import useLiveSession from "./useLiveSession.js";
 import { FakeWebSocket, pasangFakeWebSocket } from "../test/fakeWebSocket.js";
 
-const access = { code: "PM-ABC123", courseName: "Pemrograman Mobile", studentName: "Rina Aprilia" };
+const TANDA_SESI = "tanda-sesi-123";
 
 const init = (ubahan = {}) => ({
   type: "session:init",
@@ -29,22 +29,36 @@ const init = (ubahan = {}) => ({
 
 function pasang(props = {}) {
   const onAccessRevoked = vi.fn();
+  const onSessionExpired = vi.fn();
   const hasil = renderHook(() =>
-    useLiveSession({ meetingId: "p1", access, onAccessRevoked, ...props }),
+    useLiveSession({ meetingId: "p1", token: TANDA_SESI, onAccessRevoked, onSessionExpired, ...props }),
   );
-  return { ...hasil, onAccessRevoked, ws: FakeWebSocket.terakhir() };
+  return { ...hasil, onAccessRevoked, onSessionExpired, ws: FakeWebSocket.terakhir() };
 }
 
 beforeEach(() => pasangFakeWebSocket());
 afterEach(() => vi.unstubAllGlobals());
 
 describe("penyambungan", () => {
-  it("mengirim student:join beserta nama saat koneksi terbuka", () => {
+  it("mengirim student:join dengan tanda sesi saat koneksi terbuka", () => {
+    const { ws } = pasang();
+    act(() => ws.buka());
+
+    expect(ws.pesanBertipe("student:join")[0]).toMatchObject({
+      meetingId: "p1",
+      studentToken: TANDA_SESI,
+    });
+  });
+
+  // Nama diambil server dari akun pemilik tanda sesi. Kalau klien ikut
+  // mengirimkannya, celah menyamar jadi orang lain terbuka lagi.
+  it("tidak mengirim nama maupun kode kelas", () => {
     const { ws } = pasang();
     act(() => ws.buka());
 
     const join = ws.pesanBertipe("student:join")[0];
-    expect(join).toMatchObject({ meetingId: "p1", accessCode: "PM-ABC123", studentName: "Rina Aprilia" });
+    expect(join.studentName).toBeUndefined();
+    expect(join.accessCode).toBeUndefined();
   });
 
   it("status koneksi mengikuti keadaan socket", async () => {
@@ -119,7 +133,7 @@ describe("dosen terputus", () => {
 });
 
 describe("penolakan dari server", () => {
-  it("invalid_code mencabut akses tersimpan", () => {
+  it("invalid_code membuka pintu kode akses", () => {
     const { ws, onAccessRevoked } = pasang();
     act(() => ws.buka());
     act(() => ws.terima({ type: "error", reason: "invalid_code", message: "Kode tidak valid." }));
@@ -127,12 +141,32 @@ describe("penolakan dari server", () => {
     expect(onAccessRevoked).toHaveBeenCalledWith("Kode tidak valid.");
   });
 
-  it("invalid_name menampilkan layar penutup, bukan sekadar notis", () => {
+  it("not_enrolled membuka pintu kode akses, bukan memaksa masuk ulang", () => {
+    const { ws, onAccessRevoked, onSessionExpired } = pasang();
+    act(() => ws.buka());
+    act(() => ws.terima({ type: "error", reason: "not_enrolled", message: "Belum bergabung." }));
+
+    expect(onAccessRevoked).toHaveBeenCalledWith("Belum bergabung.");
+    expect(onSessionExpired).not.toHaveBeenCalled();
+  });
+
+  // Tanda sesi mati (logout di perangkat lain, atau akun dihapus dosen) tidak
+  // bisa diperbaiki dengan kode akses -- mahasiswa harus masuk lagi.
+  it("unauthenticated memaksa masuk ulang, bukan meminta kode akses", () => {
+    const { ws, onAccessRevoked, onSessionExpired } = pasang();
+    act(() => ws.buka());
+    act(() => ws.terima({ type: "error", reason: "unauthenticated", message: "Sesi berakhir." }));
+
+    expect(onSessionExpired).toHaveBeenCalled();
+    expect(onAccessRevoked).not.toHaveBeenCalled();
+  });
+
+  it("unavailable menampilkan layar penutup, bukan sekadar notis", () => {
     const { result, ws } = pasang();
     act(() => ws.buka());
-    act(() => ws.terima({ type: "error", reason: "invalid_name", message: "Nama tidak terkirim." }));
+    act(() => ws.terima({ type: "error", reason: "unavailable", message: "Pertemuan belum tersedia." }));
 
-    expect(result.current.closedMessage).toBe("Nama tidak terkirim.");
+    expect(result.current.closedMessage).toBe("Pertemuan belum tersedia.");
   });
 });
 

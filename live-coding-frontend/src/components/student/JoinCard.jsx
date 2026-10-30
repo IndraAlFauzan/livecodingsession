@@ -1,58 +1,48 @@
 import { useState } from "react";
-import { studentApi } from "../../lib/api.js";
-import { storage } from "../../lib/storage.js";
+import { useStudentAuth } from "../../hooks/useStudentAuth.jsx";
 import Button from "../ui/Button.jsx";
 import TextField from "../ui/TextField.jsx";
 
+// Kode akses hanya dipakai sekali, untuk bergabung. Setelah itu yang berlaku
+// adalah keanggotaan kelas, jadi dosen boleh mengganti kodenya kapan saja.
 export default function JoinCard({ expectedSlug, message, heading = "h2", onSuccess }) {
   const Heading = heading;
-  const [name, setName] = useState(() => storage.getStudentName());
+  const { joinCourse } = useStudentAuth();
   const [code, setCode] = useState("");
   const [error, setError] = useState(message || null);
-  const [submitting, setSubmitting] = useState(false);
+  const [mengirim, setMengirim] = useState(false);
 
   async function handleSubmit(event) {
     event.preventDefault();
-    const trimmedName = name.trim();
-    const trimmedCode = code.trim();
-    if (!trimmedName || !trimmedCode) {
-      setError("Isi nama lengkap dan kode akses dulu.");
+    const kode = code.trim();
+    if (!kode) {
+      setError("Isi kode akses dulu.");
       return;
     }
 
-    setSubmitting(true);
+    setMengirim(true);
     setError(null);
     try {
-      const { course } = await studentApi.access(trimmedCode);
+      const course = await joinCourse(kode);
       if (expectedSlug && course.slug !== expectedSlug) {
         setError(`Kode ini untuk mata kuliah lain (${course.name}).`);
         return;
       }
-      storage.setStudentName(trimmedName);
-      storage.saveCourse(course.slug, course.name, trimmedCode.toUpperCase());
-      onSuccess(course);
+      setCode("");
+      onSuccess?.(course);
     } catch (err) {
       setError(err.message);
     } finally {
-      setSubmitting(false);
+      setMengirim(false);
     }
   }
 
   return (
     <form className="lc-join lc-joinbox" onSubmit={handleSubmit} noValidate>
       <div>
-        <Heading className="lc-join__title">Masuk ke kelas</Heading>
-        <p className="lc-join__text">Isi namamu dan kode akses dari dosen. Tidak perlu membuat akun.</p>
+        <Heading className="lc-join__title">Gabung mata kuliah</Heading>
+        <p className="lc-join__text">Masukkan kode akses dari dosen. Cukup sekali per mata kuliah.</p>
       </div>
-
-      <TextField
-        label="Nama lengkap"
-        value={name}
-        onChange={(event) => setName(event.target.value)}
-        placeholder="Nama sesuai daftar hadir"
-        maxLength={60}
-        autoComplete="name"
-      />
 
       <TextField
         label="Kode akses mata kuliah"
@@ -68,8 +58,8 @@ export default function JoinCard({ expectedSlug, message, heading = "h2", onSucc
         hint="Huruf besar atau kecil sama saja."
       />
 
-      <Button size="lg" block iconRight="chevron-right" type="submit" disabled={submitting}>
-        {submitting ? "Memeriksa kode..." : "Masuk kelas"}
+      <Button size="lg" block iconRight="chevron-right" type="submit" disabled={mengirim}>
+        {mengirim ? "Memeriksa kode..." : "Gabung"}
       </Button>
     </form>
   );

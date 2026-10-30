@@ -17,26 +17,19 @@ function write(key, value) {
 }
 
 export const storage = {
-  getStudentName: () => read("lc.studentName", ""),
-  setStudentName: (name) => write("lc.studentName", name),
-
-  getCourses: () => read("lc.courses", {}),
-  saveCourse(slug, name, code) {
-    write("lc.courses", { ...read("lc.courses", {}), [slug]: { name, code } });
-  },
-  forgetCourse(slug) {
-    const courses = read("lc.courses", {});
-    delete courses[slug];
-    write("lc.courses", courses);
-  },
+  // Satu tanda sesi untuk seluruh akun. Daftar mata kuliah tidak lagi disimpan
+  // di sini -- riwayat itu milik akun dan diambil dari server, jadi tetap sama
+  // di perangkat mana pun mahasiswa masuk.
+  getStudentToken: () => read("lc.studentToken", null),
+  setStudentToken: (token) => write("lc.studentToken", token),
 
   getAdminToken: () => read("lc.adminToken", null),
   setAdminToken: (token) => write("lc.adminToken", token),
-};
 
-export function getCourseAccess(slug) {
-  const course = storage.getCourses()[slug];
-  const studentName = storage.getStudentName();
-  if (!course || !studentName) return null;
-  return { code: course.code, courseName: course.name, studentName };
-}
+  // Sisa penyimpanan dari versi sebelum ada akun. Dibersihkan sekali saat
+  // aplikasi dibuka supaya tidak menumpuk di perangkat mahasiswa lama.
+  dropLegacy() {
+    write("lc.courses", null);
+    write("lc.studentName", null);
+  },
+};

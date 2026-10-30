@@ -9,3 +9,4 @@ export { default as Avatar, AvatarStack } from "./Avatar.jsx";
 export { default as Card } from "./Card.jsx";
 export { default as EmptyState } from "./EmptyState.jsx";
 export { default as Dialog } from "./Dialog.jsx";
+export { default as Modal } from "./Modal.jsx";

@@ -25,7 +25,10 @@ npm run dev
 | `PUBLIC_BASE_URL` | URL frontend mahasiswa, dipakai untuk membuat link pertemuan |
 | `MAX_FILE_SIZE_BYTES` | Ukuran maksimal satu file teks |
 | `WS_HEARTBEAT_MS` | Jeda ping WebSocket, default `30000`. Koneksi yang tidak membalas dalam satu putaran diputus |
+| `TEACHER_GRACE_MS` | Lama sesi ditahan tetap live saat koneksi dosen putus, default `120000`. Dosen pamit dari VS Code tetap mengakhiri sesi seketika |
 | `DB_PATH` | Lokasi file database, default `data/livecoding.db` |
+
+Endpoint `GET /api/admin/meetings/:id/viewers` mengembalikan `viewers` (semua yang pernah masuk, dari tabel `meeting_viewers`) dan `watchingNow` (yang sedang tersambung). Dosen juga menerima pesan WebSocket `room:viewers` setiap ada mahasiswa masuk, keluar, atau berpindah file.
 
 Backup data cukup dengan menyalin file database.
 

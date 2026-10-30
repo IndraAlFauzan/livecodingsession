@@ -44,6 +44,15 @@ db.exec(`
     content TEXT NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS meeting_viewers (
+    meeting_id TEXT NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    first_seen TEXT NOT NULL,
+    last_seen TEXT NOT NULL,
+    visits INTEGER NOT NULL DEFAULT 1,
+    PRIMARY KEY (meeting_id, name)
+  );
+
   CREATE TABLE IF NOT EXISTS meeting_files (
     meeting_id TEXT NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
     path TEXT NOT NULL,
@@ -284,6 +293,27 @@ function finishMeeting(id) {
   cleanupOrphanBlobs();
 }
 
+// Nama diketik sendiri oleh mahasiswa tanpa akun, jadi ini catatan kehadiran
+// yang dilaporkan sendiri -- bukan bukti identitas.
+function recordViewer(meetingId, name) {
+  const at = now();
+  db.prepare(
+    `INSERT INTO meeting_viewers (meeting_id, name, first_seen, last_seen, visits)
+     VALUES (?, ?, ?, ?, 1)
+     ON CONFLICT (meeting_id, name) DO UPDATE
+     SET last_seen = excluded.last_seen, visits = visits + 1`,
+  ).run(meetingId, name, at, at);
+}
+
+function listViewers(meetingId) {
+  return db
+    .prepare(
+      `SELECT name, first_seen AS firstSeen, last_seen AS lastSeen, visits
+       FROM meeting_viewers WHERE meeting_id = ? ORDER BY first_seen`,
+    )
+    .all(meetingId);
+}
+
 function setMeetingTree(id, tree) {
   db.prepare('UPDATE meetings SET tree = ? WHERE id = ?').run(JSON.stringify(tree), id);
 }
@@ -384,6 +414,8 @@ module.exports = {
   deleteMeeting,
   startMeeting,
   finishMeeting,
+  recordViewer,
+  listViewers,
   setMeetingTree,
   setActiveFile,
   upsertFile,

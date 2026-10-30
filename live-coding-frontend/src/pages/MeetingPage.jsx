@@ -51,6 +51,7 @@ function MeetingViewer({ slug, meetingId, access, onAccessRevoked }) {
   const [flashFiles, setFlashFiles] = useState(() => new Set());
   const [notice, setNotice] = useState(null);
   const [closedMessage, setClosedMessage] = useState(null);
+  const [teacherWaiting, setTeacherWaiting] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const filesRef = useRef(files);
@@ -105,6 +106,7 @@ function MeetingViewer({ slug, meetingId, access, onAccessRevoked }) {
           setTeacherSelection(message.selection || null);
           setFiles({});
           setNotice(null);
+          setTeacherWaiting(false);
 
           const target =
             followRef.current && message.hasTeacher && message.activeFile
@@ -164,7 +166,14 @@ function MeetingViewer({ slug, meetingId, access, onAccessRevoked }) {
           setTeacherSelection(message.selections?.length ? { path: message.path, selections: message.selections } : null);
           break;
 
+        // Dosen putus tapi masih ditunggu: pertemuan belum dinyatakan selesai.
+        case "teacher:waiting":
+          setTeacherWaiting(true);
+          setTeacherSelection(null);
+          break;
+
         case "teacher:disconnected":
+          setTeacherWaiting(false);
           setHasTeacher(false);
           setTeacherSelection(null);
           setMeeting((prev) => prev && { ...prev, status: "finished" });
@@ -194,7 +203,14 @@ function MeetingViewer({ slug, meetingId, access, onAccessRevoked }) {
       ws.onopen = () => {
         attempt = 0;
         setConnectionStatus("connected");
-        ws.send(JSON.stringify({ type: "student:join", meetingId, accessCode: access.code }));
+        ws.send(
+          JSON.stringify({
+            type: "student:join",
+            meetingId,
+            accessCode: access.code,
+            studentName: access.studentName,
+          }),
+        );
       };
 
       ws.onmessage = (event) => {
@@ -218,7 +234,13 @@ function MeetingViewer({ slug, meetingId, access, onAccessRevoked }) {
       clearTimeout(retryTimer);
       ws?.close();
     };
-  }, [meetingId, access.code]);
+  }, [meetingId, access.code, access.studentName]);
+
+  useEffect(() => {
+    const ws = socketRef.current;
+    if (ws?.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ type: "student:view", path: selectedFile, following: followTeacher }));
+  }, [selectedFile, followTeacher, connectionStatus]);
 
   function openFile(path) {
     setSelectedFile(path);
@@ -271,6 +293,12 @@ function MeetingViewer({ slug, meetingId, access, onAccessRevoked }) {
           }
           student={access.studentName}
         />
+
+        {teacherWaiting && (
+          <div className="lc-ide__notice lc-ide__notice--wait" role="status">
+            <p>Koneksi dosen terputus. Menunggu dosen tersambung lagi — kode terakhir tetap terlihat.</p>
+          </div>
+        )}
 
         {notice && (
           <div className="lc-ide__notice" role="alert">

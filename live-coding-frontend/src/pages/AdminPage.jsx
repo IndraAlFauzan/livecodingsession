@@ -3,7 +3,9 @@ import { useSearchParams } from "react-router-dom";
 import AccessCodeCard from "../components/admin/AccessCodeCard.jsx";
 import LiveSessionCard from "../components/admin/LiveSessionCard.jsx";
 import MeetingCard from "../components/admin/MeetingCard.jsx";
+import MeetingDetail from "../components/admin/MeetingDetail.jsx";
 import MeetingTable from "../components/admin/MeetingTable.jsx";
+import ViewerList from "../components/admin/ViewerList.jsx";
 import AppHeader from "../components/layout/AppHeader.jsx";
 import AuthAside from "../components/layout/AuthAside.jsx";
 import AuthLayout from "../components/layout/AuthLayout.jsx";
@@ -24,8 +26,10 @@ const FILTERS = [
 ];
 
 // Pertemuan yang ditandai live tapi dosennya tidak terhubung sudah selesai.
+// Selama masa tenggang dosen masih ditunggu, jadi tetap dihitung live.
 function derivedStatus(meeting) {
-  return meeting.status === "live" && !meeting.teacherConnected ? "finished" : meeting.status;
+  const connected = meeting.teacherConnected || meeting.reconnecting;
+  return meeting.status === "live" && !connected ? "finished" : meeting.status;
 }
 
 export default function AdminPage() {
@@ -128,7 +132,11 @@ function AdminDashboard({ api, onLogout }) {
         list.map(async (course) => {
           try {
             const { meetings } = await api.meetings(course.id);
-            return meetings.some((meeting) => meeting.status === "live" && meeting.teacherConnected) ? course.id : null;
+            return meetings.some(
+              (meeting) => meeting.status === "live" && (meeting.teacherConnected || meeting.reconnecting),
+            )
+              ? course.id
+              : null;
           } catch {
             return null;
           }
@@ -250,14 +258,40 @@ function CourseDetail({ api, course, onError, onCourseChanged, onLogout }) {
   const [addingMeeting, setAddingMeeting] = useState(false);
   const [copied, setCopied] = useState(false);
   const [filter, setFilter] = useState(0);
+  const [detailOf, setDetailOf] = useState(null);
+  const [detailData, setDetailData] = useState(null);
+  const [liveViewers, setLiveViewers] = useState([]);
 
   const loadMeetings = useCallback(async () => {
     try {
-      setMeetings((await api.meetings(course.id)).meetings);
+      const list = (await api.meetings(course.id)).meetings;
+      setMeetings(list);
+
+      // Web dosen tidak punya koneksi WebSocket, jadi daftar penonton ikut polling.
+      const running = list.find((meeting) => meeting.status === "live" && meeting.teacherConnected);
+      if (!running) {
+        setLiveViewers([]);
+        return;
+      }
+      const { watchingNow } = await api.meetingViewers(running.id);
+      setLiveViewers(watchingNow || []);
     } catch (err) {
       onError(err);
     }
   }, [api, course.id, onError]);
+
+  const openDetail = useCallback(
+    async (meeting) => {
+      setDetailOf(meeting);
+      setDetailData(null);
+      try {
+        setDetailData(await api.meetingViewers(meeting.id));
+      } catch (err) {
+        onError(err);
+      }
+    },
+    [api, onError],
+  );
 
   useEffect(() => {
     loadMeetings();
@@ -465,9 +499,12 @@ function CourseDetail({ api, course, onError, onCourseChanged, onLogout }) {
             onToggleVisible={(meeting) => run(() => api.updateMeeting(meeting.id, { visible: !meeting.visible }))}
             onOpen={openMeeting}
             onAskDelete={(meeting) => setConfirm(`delete:${meeting.id}`)}
+            onDetail={openDetail}
           />
         )}
       </Card>
+
+      <ViewerList viewers={liveViewers} live={Boolean(liveMeeting)} />
 
       <Card title="Hapus mata kuliah" icon="trash">
         <div className="lc-danger-zone">
@@ -477,6 +514,15 @@ function CourseDetail({ api, course, onError, onCourseChanged, onLogout }) {
           </Button>
         </div>
       </Card>
+
+      {detailOf && (
+        <MeetingDetail
+          meeting={detailOf}
+          status={derivedStatus(detailOf)}
+          data={detailData}
+          onClose={() => setDetailOf(null)}
+        />
+      )}
 
       {confirm === "regenerate" && (
         <Dialog

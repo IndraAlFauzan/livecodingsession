@@ -54,7 +54,7 @@ function TitleCell({ meeting, onRename }) {
   );
 }
 
-export default function MeetingTable({ meetings, onRename, onToggleVisible, onOpen, onAskDelete }) {
+export default function MeetingTable({ meetings, onRename, onToggleVisible, onOpen, onAskDelete, onDetail }) {
   return (
     <div className="lc-table__wrap">
       <table className="lc-table">
@@ -99,6 +99,13 @@ export default function MeetingTable({ meetings, onRename, onToggleVisible, onOp
                 </td>
                 <td>
                   <div className="lc-row">
+                    <IconButton
+                      icon="users"
+                      label={`Lihat siapa yang masuk pertemuan ${meeting.number}`}
+                      variant="plain"
+                      size="sm"
+                      onClick={() => onDetail(meeting)}
+                    />
                     <Button
                       variant="secondary"
                       size="sm"

@@ -2,7 +2,7 @@
   "name": "live-coding-classroom",
   "displayName": "Live Coding Classroom",
   "description": "Share VS Code project file tree and file changes to students in real time.",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "publisher": "your-name",
   "engines": {
     "vscode": "^1.90.0"
@@ -19,15 +19,18 @@
     "commands": [
       {
         "command": "liveCoding.startSession",
-        "title": "Live Coding: Start Session"
+        "title": "Live Coding: Start Session",
+        "icon": "$(play)"
       },
       {
         "command": "liveCoding.stopSession",
-        "title": "Live Coding: Stop Session"
+        "title": "Live Coding: Stop Session",
+        "icon": "$(debug-stop)"
       },
       {
         "command": "liveCoding.copyStudentLink",
-        "title": "Live Coding: Copy Student Link"
+        "title": "Live Coding: Copy Student Link",
+        "icon": "$(link)"
       },
       {
         "command": "liveCoding.hideFromStudents",
@@ -38,6 +41,20 @@
         "command": "liveCoding.showToStudents",
         "title": "Tampilkan ke mahasiswa",
         "category": "Live Coding"
+      },
+      {
+        "command": "liveCoding.copyAccessCode",
+        "title": "Live Coding: Copy Access Code",
+        "icon": "$(key)"
+      },
+      {
+        "command": "liveCoding.toggleSession",
+        "title": "Live Coding: Start or Stop Session"
+      },
+      {
+        "command": "liveCoding.refreshSession",
+        "title": "Live Coding: Refresh",
+        "icon": "$(refresh)"
       }
     ],
     "configuration": {
@@ -101,9 +118,65 @@
         {
           "command": "liveCoding.showToStudents",
           "when": "resourceScheme == file"
+        },
+        {
+          "command": "liveCoding.refreshSession",
+          "when": "false"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "liveCoding.startSession",
+          "when": "view == liveCoding.session && !liveCoding.live",
+          "group": "navigation@1"
+        },
+        {
+          "command": "liveCoding.copyStudentLink",
+          "when": "view == liveCoding.session && liveCoding.live",
+          "group": "navigation@1"
+        },
+        {
+          "command": "liveCoding.copyAccessCode",
+          "when": "view == liveCoding.session && liveCoding.live",
+          "group": "navigation@2"
+        },
+        {
+          "command": "liveCoding.stopSession",
+          "when": "view == liveCoding.session && liveCoding.live",
+          "group": "navigation@3"
         }
       ]
-    }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "liveCoding",
+          "title": "Live Coding",
+          "icon": "resources/live-coding.svg"
+        }
+      ]
+    },
+    "views": {
+      "liveCoding": [
+        {
+          "id": "liveCoding.session",
+          "name": "Sesi"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "liveCoding.session",
+        "contents": "Belum ada sesi live.\n[Mulai sesi live](command:liveCoding.startSession)\n\nSesi berjalan dari workspace yang sedang terbuka."
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "liveCoding.toggleSession",
+        "key": "ctrl+alt+l",
+        "mac": "cmd+alt+l"
+      }
+    ]
   },
   "scripts": {
     "compile": "tsc -p ./",

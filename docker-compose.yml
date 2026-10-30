@@ -14,6 +14,7 @@ services:
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?PUBLIC_BASE_URL wajib diisi}
       MAX_FILE_SIZE_BYTES: ${MAX_FILE_SIZE_BYTES:-524288}
       WS_HEARTBEAT_MS: ${WS_HEARTBEAT_MS:-30000}
+      TEACHER_GRACE_MS: ${TEACHER_GRACE_MS:-120000}
       DB_PATH: /app/data/livecoding.db
     volumes:
       - livecoding-data:/app/data

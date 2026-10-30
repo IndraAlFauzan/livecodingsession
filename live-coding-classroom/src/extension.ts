@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { SessionView, type SessionSnapshot, type Viewer } from "./sessionView";
 import { api, Course, Meeting } from "./api";
 import { buildFileTree } from "./fileTree";
 import { getConfig, createIgnoreMatcher } from "./config";
@@ -35,6 +36,16 @@ let stopping = false;
 let watcher: vscode.FileSystemWatcher | null = null;
 let disposables: vscode.Disposable[] = [];
 let statusItem: vscode.StatusBarItem;
+let sessionView: SessionView;
+let viewers: Viewer[] = [];
+let startedAt: number | null = null;
+let clockTimer: ReturnType<typeof setInterval> | null = null;
+let reconnect: { workspace: vscode.WorkspaceFolder; target: LiveTarget; attempt: number; timer: ReturnType<typeof setTimeout> | null } | null = null;
+
+// Backend menahan pertemuan tetap live selama dua menit saat koneksi dosen putus,
+// jadi extension mencoba kembali sendiri selama jendela itu.
+const RECONNECT_WINDOW_MS = 120000;
+const RECONNECT_STEPS = [1000, 2000, 4000, 8000, 10000];
 // Path yang sudah dikirim ke backend pada sesi ini.
 const sentPaths = new Set<string>();
 
@@ -42,13 +53,21 @@ export function activate(context: vscode.ExtensionContext) {
   statusItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
   statusItem.command = "liveCoding.menu";
 
+  sessionView = new SessionView();
+
   context.subscriptions.push(
     statusItem,
+    vscode.window.registerTreeDataProvider("liveCoding.session", sessionView),
     vscode.commands.registerCommand("liveCoding.startSession", startSession),
     vscode.commands.registerCommand("liveCoding.stopSession", stopSession),
     vscode.commands.registerCommand("liveCoding.copyStudentLink", copyStudentLink),
+    vscode.commands.registerCommand("liveCoding.copyAccessCode", copyAccessCode),
+    vscode.commands.registerCommand("liveCoding.toggleSession", toggleSession),
+    vscode.commands.registerCommand("liveCoding.refreshSession", () => render()),
     vscode.commands.registerCommand("liveCoding.menu", showLiveMenu),
   );
+
+  render();
 
   registerHiddenFiles(context, () => debounceByKey("visibility", resyncVisibility, 200));
 }
@@ -218,6 +237,72 @@ async function pickContinuation(
   return choice ? choice.meetingId : undefined;
 }
 
+// ---------- tampilan: status bar dan panel ----------
+
+function phase(): SessionSnapshot["phase"] {
+  if (reconnect) return "reconnecting";
+  if (!live) return "idle";
+  return live.joined ? "live" : "connecting";
+}
+
+function elapsed(): string {
+  if (!startedAt) return "";
+  const total = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
+  const parts = [Math.floor(total / 3600), Math.floor(total / 60) % 60, total % 60];
+  return parts.map((part) => String(part).padStart(2, "0")).join(":");
+}
+
+function render() {
+  const current = phase();
+
+  if (current === "idle") {
+    statusItem.text = "$(radio-tower) Live Coding";
+    statusItem.tooltip = "Mulai sesi live coding";
+    statusItem.backgroundColor = undefined;
+  } else if (current === "connecting") {
+    statusItem.text = "$(sync~spin) Live Coding: menghubungkan...";
+    statusItem.tooltip = live?.target.label;
+    statusItem.backgroundColor = undefined;
+  } else if (current === "reconnecting") {
+    statusItem.text = "$(warning) Live Coding: menyambung lagi...";
+    statusItem.tooltip = "Koneksi terputus. Klik untuk mencoba sekarang atau menghentikan sesi.";
+    statusItem.backgroundColor = new vscode.ThemeColor("statusBarItem.warningBackground");
+  } else {
+    const count = viewers.length;
+    const clock = elapsed();
+    statusItem.text = `$(broadcast) Live${clock ? ` ${clock}` : ""} · $(eye) ${count}`;
+    statusItem.tooltip = `${live?.target.label}\n${count} mahasiswa menonton\nKlik untuk salin link atau hentikan sesi`;
+    statusItem.backgroundColor = undefined;
+  }
+
+  // Status bar tidak pernah disembunyikan: saat idle ia jadi pintu masuk sesi.
+  statusItem.show();
+
+  vscode.commands.executeCommand("setContext", "liveCoding.live", current === "live");
+  sessionView.update({
+    phase: current,
+    label: live?.target.label ?? null,
+    accessCode: live?.accessCode ?? null,
+    studentUrl: live?.studentUrl ?? null,
+    viewers,
+  });
+}
+
+function startClock() {
+  stopClock();
+  clockTimer = setInterval(render, 1000);
+}
+
+function stopClock() {
+  if (clockTimer) clearInterval(clockTimer);
+  clockTimer = null;
+}
+
+async function toggleSession() {
+  if (isConnected() || reconnect) return stopSession();
+  return startSession();
+}
+
 // ---------- sesi live ----------
 
 function startLive(workspace: vscode.WorkspaceFolder, target: LiveTarget) {
@@ -226,9 +311,7 @@ function startLive(workspace: vscode.WorkspaceFolder, target: LiveTarget) {
   stopping = false;
   sentPaths.clear();
 
-  statusItem.text = "$(sync~spin) Live Coding: menghubungkan...";
-  statusItem.tooltip = target.label;
-  statusItem.show();
+  render();
 
   connectSocket(config.backendUrl, {
     onOpen: () => {
@@ -249,16 +332,39 @@ function startLive(workspace: vscode.WorkspaceFolder, target: LiveTarget) {
 
       if (rejected) return;
       if (!joined) {
+        if (reconnect) return scheduleReconnect(workspace, target);
         vscode.window.showErrorMessage(`Live Coding: tidak bisa terhubung ke backend (${config.backendUrl}).`);
         return;
       }
-      vscode.window
-        .showWarningMessage("Live Coding: koneksi ke backend terputus. Sesi dihentikan.", "Sambung lagi")
-        .then((choice) => {
-          if (choice && !isConnected()) startLive(workspace, target);
-        });
+      scheduleReconnect(workspace, target);
     },
   });
+}
+
+// Selama jendela tenggang backend, extension mencoba sendiri dengan jeda menaik.
+// Pop-up hanya muncul kalau sampai habis tetap gagal.
+function scheduleReconnect(workspace: vscode.WorkspaceFolder, target: LiveTarget) {
+  const attempt = (reconnect?.attempt ?? 0) + 1;
+  const waited = RECONNECT_STEPS.slice(0, attempt).reduce((sum, step) => sum + step, 0);
+
+  if (waited > RECONNECT_WINDOW_MS) {
+    reconnect = null;
+    startedAt = null;
+    render();
+    vscode.window
+      .showWarningMessage("Live Coding: koneksi tidak kembali. Sesi dihentikan.", "Mulai lagi")
+      .then((choice) => {
+        if (choice && !isConnected()) startLive(workspace, target);
+      });
+    return;
+  }
+
+  const delay = RECONNECT_STEPS[Math.min(attempt - 1, RECONNECT_STEPS.length - 1)];
+  const timer = setTimeout(() => {
+    if (reconnect) startLive(workspace, target);
+  }, delay);
+  reconnect = { workspace, target, attempt, timer };
+  render();
 }
 
 async function handleBackendMessage(message: SocketPayload) {
@@ -275,8 +381,18 @@ async function handleBackendMessage(message: SocketPayload) {
     registerActiveEditorListener();
     await sendCurrentActiveFile();
 
-    statusItem.text = `$(broadcast) Live: ${live.target.label}`;
-    statusItem.tooltip = "Klik untuk salin link atau hentikan sesi";
+    const resumed = Boolean(reconnect);
+    if (reconnect?.timer) clearTimeout(reconnect.timer);
+    reconnect = null;
+    if (!resumed) startedAt = Date.now();
+    startClock();
+    render();
+
+    // Sambung-ulang tidak perlu pop-up; cukup kabar singkat di status bar.
+    if (resumed) {
+      vscode.window.setStatusBarMessage("$(check) Live Coding: tersambung lagi", 4000);
+      return;
+    }
 
     const choice = await vscode.window.showInformationMessage(
       `Live coding dimulai: ${live.target.label}. Kode akses mahasiswa: ${live.accessCode}`,
@@ -285,6 +401,12 @@ async function handleBackendMessage(message: SocketPayload) {
     );
     if (choice === "Salin link") copyStudentLink();
     if (choice === "Salin kode") copyAccessCode();
+    return;
+  }
+
+  if (message.type === "room:viewers") {
+    viewers = Array.isArray(message.viewers) ? (message.viewers as Viewer[]) : [];
+    render();
     return;
   }
 
@@ -298,13 +420,37 @@ async function handleBackendMessage(message: SocketPayload) {
   }
 }
 
+// Menghentikan sesi tidak bisa dibatalkan: mahasiswa langsung melihat Selesai.
+async function confirmStop(label: string): Promise<boolean> {
+  const choice = await vscode.window.showWarningMessage(
+    `Hentikan sesi live ${label}?`,
+    {
+      modal: true,
+      detail: "Mahasiswa akan melihat sesi selesai. Kode pertemuan tetap tersimpan dan bisa dibuka sebagai arsip.",
+    },
+    "Hentikan sesi",
+  );
+  return choice === "Hentikan sesi";
+}
+
 async function stopSession() {
+  if (reconnect) {
+    if (!(await confirmStop(reconnect.target.label))) return;
+    if (reconnect.timer) clearTimeout(reconnect.timer);
+    reconnect = null;
+    startedAt = null;
+    teardown();
+    vscode.window.showInformationMessage("Live coding dihentikan.");
+    return;
+  }
   if (!isConnected()) {
     vscode.window.showInformationMessage("Tidak ada sesi live coding yang berjalan.");
     return;
   }
+  if (!live || !(await confirmStop(live.target.label))) return;
   stopping = true;
   sendMessage({ type: "teacher:leave" });
+  startedAt = null;
   teardown();
   vscode.window.showInformationMessage("Live coding dihentikan. Kode pertemuan tersimpan dan statusnya Selesai.");
 }
@@ -319,11 +465,27 @@ function teardown() {
   sentPaths.clear();
   lastSelectionPath = null;
   live = null;
-  statusItem?.hide();
+  viewers = [];
+  stopClock();
+  render();
 }
 
 async function showLiveMenu() {
-  if (!live?.joined) return;
+  if (reconnect) {
+    const choice = await vscode.window.showQuickPick(["Coba sambung sekarang", "Hentikan sesi"], {
+      title: "Koneksi terputus",
+    });
+    if (choice === "Coba sambung sekarang") {
+      const { workspace, target, timer } = reconnect;
+      if (timer) clearTimeout(timer);
+      startLive(workspace, target);
+    }
+    if (choice === "Hentikan sesi") stopSession();
+    return;
+  }
+
+  if (!live?.joined) return startSession();
+
   const choice = await vscode.window.showQuickPick(["Salin link mahasiswa", "Salin kode akses", "Hentikan sesi"], {
     title: live.target.label,
   });

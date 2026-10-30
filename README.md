@@ -191,6 +191,7 @@ Kode akses tersimpan di browser, jadi kunjungan berikutnya tidak perlu memasukka
 | `PUBLIC_BASE_URL` | `http://localhost:5174` | Alamat web mahasiswa, dipakai untuk membuat link pertemuan |
 | `MAX_FILE_SIZE_BYTES` | `524288` | Ukuran maksimal satu file teks (512 KB) |
 | `WS_HEARTBEAT_MS` | `30000` | Jeda ping WebSocket untuk mendeteksi koneksi yang mati diam-diam |
+| `TEACHER_GRACE_MS` | `120000` | Masa tenggang sebelum sesi dinyatakan selesai saat koneksi dosen putus |
 | `DB_PATH` | `data/livecoding.db` | Lokasi file database |
 
 ### Frontend (`live-coding-frontend/.env`)
@@ -244,6 +245,16 @@ Viewer mahasiswa:
 
 **Batasannya:** browser tidak bisa mencegah screenshot sepenuhnya. Foto dari kamera HP, screenshot lewat menu sistem operasi, dan DevTools tetap bisa dipakai. Tidak ada penanda identitas di atas kode, jadi screenshot yang tersebar tidak bisa dilacak ke mahasiswa asalnya.
 
+### Siapa yang menonton
+Saat sesi berjalan, dosen melihat daftar mahasiswa yang sedang membuka pertemuan beserta file yang mereka baca — di panel **Live Coding** pada Activity Bar VS Code, dan di kartu "Menonton sekarang" halaman admin. Tombol orang di tiap baris tabel pertemuan membuka daftar semua mahasiswa yang pernah masuk ke pertemuan itu, termasuk yang sudah selesai.
+
+Nama diketik sendiri mahasiswa tanpa akun, jadi daftar ini laporan kehadiran — bukan bukti identitas.
+
+### Saat koneksi dosen putus
+Sesi tidak langsung berakhir. Pertemuan ditahan tetap live selama `TEACHER_GRACE_MS` (bawaan 2 menit) dan mahasiswa melihat "Menunggu dosen tersambung lagi"; kode terakhir tetap terbaca. Kalau dosen kembali dalam tenggang itu, sesi yang sama dilanjutkan — jam sesi tidak mengulang dan file tidak hilang. Lewat dari itu, pertemuan dinyatakan selesai.
+
+Menghentikan sesi dari VS Code mengakhiri pertemuan seketika tanpa tenggang.
+
 ### Data yang dikirim
 Extension hanya mengirim file di dalam folder project yang tidak dikecualikan. File yang disembunyikan atau dikecualikan tidak pernah meninggalkan komputer dosen.
 
@@ -273,6 +284,7 @@ Environment yang wajib diisi (lihat komentar di `.env.production.example`):
 | `PUBLIC_BASE_URL` | runtime | `https://live.devrisetiaf.cloud` |
 | `MAX_FILE_SIZE_BYTES` | runtime, opsional | `524288` |
 | `WS_HEARTBEAT_MS` | runtime, opsional | `30000` |
+| `TEACHER_GRACE_MS` | runtime, opsional | `120000` |
 | `VITE_WS_URL` | build-time | `wss://api-live.devrisetiaf.cloud` |
 | `VITE_API_URL` | build-time | `https://api-live.devrisetiaf.cloud` |
 

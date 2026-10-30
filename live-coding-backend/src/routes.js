@@ -14,7 +14,11 @@ function isPositiveInt(value) {
 }
 
 function withLiveFlag(meeting) {
-  return { ...meeting, teacherConnected: live.hasTeacher(meeting.id) };
+  return {
+    ...meeting,
+    teacherConnected: live.hasTeacher(meeting.id),
+    reconnecting: live.isReconnecting(meeting.id),
+  };
 }
 
 function toStudentMeeting(meeting) {
@@ -143,10 +147,16 @@ admin.patch('/meetings/:id', (req, res) => {
   res.json({ meeting: withLiveFlag(updated) });
 });
 
+admin.get('/meetings/:id/viewers', (req, res) => {
+  const meeting = db.getMeeting(req.params.id);
+  if (!meeting) return res.status(404).json({ error: 'Pertemuan tidak ditemukan.' });
+  res.json({ viewers: db.listViewers(meeting.id), watchingNow: live.listViewers(meeting.id) });
+});
+
 admin.delete('/meetings/:id', (req, res) => {
   const meeting = db.getMeeting(req.params.id);
   if (!meeting) return res.status(404).json({ error: 'Pertemuan tidak ditemukan.' });
-  if (live.hasTeacher(meeting.id)) {
+  if (live.hasTeacher(meeting.id) || live.isReconnecting(meeting.id)) {
     return res.status(409).json({ error: 'Pertemuan sedang live. Hentikan dulu sesinya dari VS Code.' });
   }
 

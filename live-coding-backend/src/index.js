@@ -66,14 +66,30 @@ function isActiveTeacher(ws) {
   return ws.role === 'teacher' && ws.meetingId && live.getRoom(ws.meetingId).teacher === ws;
 }
 
-function releaseTeacher(ws) {
+function endMeetingNow(meetingId) {
+  live.clearReconnecting(meetingId);
+  db.finishMeeting(meetingId);
+  live.broadcastToStudents(meetingId, { type: 'teacher:disconnected' });
+  live.releaseRoom(meetingId);
+}
+
+// Dosen pamit lewat 'teacher:leave' = sesi berakhir saat itu juga. Koneksi yang
+// putus sendiri belum tentu berarti kelas usai -- WiFi kampus kadang hilang
+// sebentar -- jadi pertemuan ditahan tetap live selama masa tenggang. Kalau
+// dosen kembali sebelum habis, sesi yang sama dilanjutkan: jam dan file utuh.
+function releaseTeacher(ws, { immediate = false } = {}) {
   if (!isActiveTeacher(ws)) return;
   const meetingId = ws.meetingId;
   const room = live.getRoom(meetingId);
   room.teacher = null;
   room.selection = null;
-  db.finishMeeting(meetingId);
-  live.broadcastToStudents(meetingId, { type: 'teacher:disconnected' });
+
+  if (immediate || config.teacherGraceMs <= 0) return endMeetingNow(meetingId);
+
+  live.broadcastToStudents(meetingId, { type: 'teacher:waiting', graceMs: config.teacherGraceMs });
+  const timer = setTimeout(() => endMeetingNow(meetingId), config.teacherGraceMs);
+  if (timer.unref) timer.unref();
+  live.markReconnecting(meetingId, timer);
 }
 
 // ---------- handlers ----------
@@ -103,7 +119,12 @@ function handleTeacherJoin(ws, message) {
       ? message.projectName.trim().slice(0, 200)
       : 'Untitled Project';
 
-  db.startMeeting(meeting.id, { projectName, continuesFrom });
+  // Sambung lagi di dalam masa tenggang melanjutkan sesi yang sama; kalau tidak,
+  // ini sesi baru dan db.startMeeting mengosongkan file serta mengulang jamnya.
+  const resuming = live.isReconnecting(meeting.id) && meeting.status === 'live';
+  if (resuming) live.clearReconnecting(meeting.id);
+  else db.startMeeting(meeting.id, { projectName, continuesFrom });
+
   room.teacher = ws;
   ws.role = 'teacher';
   ws.meetingId = meeting.id;
@@ -118,7 +139,10 @@ function handleTeacherJoin(ws, message) {
   });
 
   live.broadcastToStudents(meeting.id, buildInit(meeting.id));
+  live.pushViewers(meeting.id);
 }
+
+let viewerSeq = 0;
 
 function handleStudentJoin(ws, message) {
   const meeting = typeof message.meetingId === 'string' ? db.getMeeting(message.meetingId) : null;
@@ -131,11 +155,30 @@ function handleStudentJoin(ws, message) {
     return reject(ws, 'Pertemuan ini belum tersedia.', 'unavailable');
   }
 
+  const studentName =
+    typeof message.studentName === 'string' && message.studentName.trim()
+      ? message.studentName.trim().slice(0, 60)
+      : 'Tanpa nama';
+
   live.getRoom(meeting.id).students.add(ws);
   ws.role = 'student';
   ws.meetingId = meeting.id;
+  ws.studentName = studentName;
+  ws.viewerId = `v${++viewerSeq}`;
+  ws.viewingFile = null;
+  ws.following = true;
 
+  db.recordViewer(meeting.id, studentName);
   send(ws, buildInit(meeting.id));
+  live.pushViewers(meeting.id);
+}
+
+// Mahasiswa melaporkan file yang sedang dibuka supaya dosen tahu siapa tertinggal di mana.
+function handleStudentView(ws, message) {
+  if (ws.role !== 'student' || !ws.meetingId) return;
+  ws.viewingFile = typeof message.path === 'string' ? message.path : null;
+  ws.following = message.following !== false;
+  live.pushViewers(ws.meetingId);
 }
 
 function handleTree(ws, message) {
@@ -239,7 +282,7 @@ const teacherHandlers = {
   'file:delete': handleFileDelete,
   'teacher:active-file': handleActiveFile,
   'teacher:selection': handleSelection,
-  'teacher:leave': (ws) => releaseTeacher(ws),
+  'teacher:leave': (ws) => releaseTeacher(ws, { immediate: true }),
   // Folder kosong muncul lewat tree:update yang dikirim extension setelahnya.
   'folder:create': () => {},
 };
@@ -297,6 +340,7 @@ wss.on('connection', (ws) => {
     }
 
     if (type === 'file:request') return handleFileRequest(ws, message);
+    if (type === 'student:view') return handleStudentView(ws, message);
 
     const handler = teacherHandlers[type];
     if (!handler) {
@@ -317,7 +361,10 @@ wss.on('connection', (ws) => {
   ws.on('close', () => {
     if (!ws.meetingId) return;
     releaseTeacher(ws);
-    if (ws.role === 'student') live.getRoom(ws.meetingId).students.delete(ws);
+    if (ws.role === 'student') {
+      live.getRoom(ws.meetingId).students.delete(ws);
+      live.pushViewers(ws.meetingId);
+    }
     live.releaseRoom(ws.meetingId);
   });
 });

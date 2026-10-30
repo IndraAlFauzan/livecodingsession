@@ -46,6 +46,7 @@ export function adminApi(token) {
     createMeeting: (courseId, data) => call("POST", `/courses/${courseId}/meetings`, data),
     updateMeeting: (id, changes) => call("PATCH", `/meetings/${id}`, changes),
     deleteMeeting: (id) => call("DELETE", `/meetings/${id}`),
+    meetingViewers: (id) => call("GET", `/meetings/${id}/viewers`),
   };
 }
 

@@ -47,9 +47,12 @@ function sendToTeacher(meetingId, payload) {
 function listViewers(meetingId) {
   const room = rooms.get(meetingId);
   if (!room) return [];
+  // Nama dan NIM berasal dari akun: join ditolak tanpa tanda sesi yang sah,
+  // jadi keduanya selalu terisi dan tidak butuh nilai cadangan.
   return [...room.students].map((student) => ({
     id: student.viewerId,
-    name: student.studentName || 'Tanpa nama',
+    nim: student.studentNim,
+    name: student.studentName,
     file: student.viewingFile || null,
     following: student.following !== false,
   }));

@@ -237,6 +237,15 @@ async function main() {
   const init = await student.next('session:init');
   check(init.meeting.status === 'live' && init.tree.length === 3 && init.hasTeacher, 'mahasiswa menerima tree live');
 
+  // Dosen di VS Code memakai daftar ini; NIM-nya dipakai mencocokkan ke daftar
+  // kelas. Dosen sudah menerima satu room:viewers kosong sebelum ada mahasiswa,
+  // jadi yang ditunggu adalah kiriman berikutnya yang sudah berisi.
+  let pantau = await teacher.next('room:viewers');
+  while (pantau.total === 0) pantau = await teacher.next('room:viewers');
+  const dilihatDosen = pantau.viewers.find((v) => v.name === 'Rina Aprilia');
+  check(Boolean(dilihatDosen), `dosen melihat penonton (${pantau.total} orang)`);
+  check(dilihatDosen.nim === nimRina, `daftar penonton membawa NIM (${dilihatDosen.nim})`);
+
   // Nama di daftar pantau diambil dari akun, bukan dari pesan klien; menyebut
   // nama lain saat bergabung tidak mengubah apa pun yang tercatat.
   const penyamar = await connect();

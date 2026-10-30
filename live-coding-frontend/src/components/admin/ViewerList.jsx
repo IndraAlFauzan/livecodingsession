@@ -23,7 +23,10 @@ export default function ViewerList({ viewers, live }) {
             <li key={person.id || person.name} className="lc-list__item">
               <Avatar name={person.name} online />
               <span className="lc-list__body">
-                <strong>{person.name}</strong>
+                <strong>
+                  {person.name}
+                  {person.nim && <span className="lc-list__nim">{person.nim}</span>}
+                </strong>
                 <small className="lc-mono">{person.file || "belum membuka file"}</small>
               </span>
               {person.following ? (

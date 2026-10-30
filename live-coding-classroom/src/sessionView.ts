@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 
-export type Viewer = { id: string; name: string; file: string | null; following: boolean };
+export type Viewer = { id: string; nim?: string; name: string; file: string | null; following: boolean };
 
 export type SessionSnapshot = {
   phase: "idle" | "connecting" | "live" | "reconnecting";
@@ -101,10 +101,15 @@ export class SessionView implements vscode.TreeDataProvider<Node> {
 
     const { viewer } = node;
     const item = new vscode.TreeItem(viewer.name);
+    // Panel sempit, jadi baris ringkasnya tetap file yang sedang dibuka -- itu
+    // yang dipakai saat mengajar. NIM ada di tooltip, untuk saat dosen perlu
+    // mencocokkan dengan daftar kelas atau ada dua nama yang sama.
     item.description = viewer.file ? viewer.file.split("/").pop() : "belum membuka file";
-    item.tooltip = `${viewer.name}\n${viewer.file || "belum membuka file"}\n${
-      viewer.following ? "Mengikuti dosen" : "Membuka file sendiri"
-    }`;
+    item.tooltip = [
+      viewer.nim ? `${viewer.name} (${viewer.nim})` : viewer.name,
+      viewer.file || "belum membuka file",
+      viewer.following ? "Mengikuti dosen" : "Membuka file sendiri",
+    ].join("\n");
     item.iconPath = new vscode.ThemeIcon(viewer.following ? "person" : "person-add");
     return item;
   }

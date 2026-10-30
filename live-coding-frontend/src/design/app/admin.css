@@ -73,3 +73,13 @@
   color: var(--ink);
   user-select: all;
 }
+
+/* NIM di sebelah nama penonton: menandai siapa yang mana saat ada dua nama
+   yang mirip, tanpa menyaingi namanya sendiri. */
+.lc-list__nim {
+  font-family: var(--font-mono);
+  font-size: 0.78em;
+  font-weight: 400;
+  color: var(--ink-2);
+  margin-left: var(--space-2);
+}

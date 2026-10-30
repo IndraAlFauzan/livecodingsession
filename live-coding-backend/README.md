@@ -41,7 +41,7 @@ npm run dev
 | `TEACHER_GRACE_MS` | Lama sesi ditahan tetap live saat koneksi dosen putus, default `120000`. Dosen pamit dari VS Code tetap mengakhiri sesi seketika |
 | `DB_PATH` | Lokasi file database, default `data/livecoding.db` |
 
-Endpoint `GET /api/admin/meetings/:id/viewers` mengembalikan `viewers` (semua yang pernah masuk, dari tabel `meeting_viewers`) dan `watchingNow` (yang sedang tersambung). Dosen juga menerima pesan WebSocket `room:viewers` setiap ada mahasiswa masuk, keluar, atau berpindah file.
+Endpoint `GET /api/admin/meetings/:id/viewers` mengembalikan `viewers` (semua yang pernah masuk, dari tabel `meeting_viewers`) dan `watchingNow` (yang sedang tersambung). Dosen juga menerima pesan WebSocket `room:viewers` setiap ada mahasiswa masuk, keluar, atau berpindah file. Tiap penonton membawa `nim` dan `name` dari akunnya, jadi dua mahasiswa bernama mirip tetap bisa dibedakan.
 
 ### Mengubah skema database
 

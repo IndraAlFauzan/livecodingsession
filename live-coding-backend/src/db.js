@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const { DatabaseSync } = require('node:sqlite');
 const { nanoid } = require('nanoid');
 const { config } = require('./config');
+const { migrate } = require('./migrate');
 
 fs.mkdirSync(path.dirname(config.dbPath), { recursive: true });
 
@@ -12,57 +13,19 @@ const db = new DatabaseSync(config.dbPath);
 db.exec(`
   PRAGMA journal_mode = WAL;
   PRAGMA foreign_keys = ON;
-
-  CREATE TABLE IF NOT EXISTS courses (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    slug TEXT NOT NULL UNIQUE,
-    access_code TEXT NOT NULL UNIQUE,
-    code_active INTEGER NOT NULL DEFAULT 1,
-    created_at TEXT NOT NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS meetings (
-    id TEXT PRIMARY KEY,
-    course_id INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
-    number INTEGER NOT NULL,
-    title TEXT NOT NULL DEFAULT '',
-    status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'live', 'finished')),
-    visible INTEGER NOT NULL DEFAULT 1,
-    continues_from TEXT REFERENCES meetings(id) ON DELETE SET NULL,
-    project_name TEXT,
-    tree TEXT NOT NULL DEFAULT '[]',
-    active_file TEXT,
-    started_at TEXT,
-    ended_at TEXT,
-    created_at TEXT NOT NULL,
-    UNIQUE (course_id, number)
-  );
-
-  CREATE TABLE IF NOT EXISTS blobs (
-    hash TEXT PRIMARY KEY,
-    content TEXT NOT NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS meeting_viewers (
-    meeting_id TEXT NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    first_seen TEXT NOT NULL,
-    last_seen TEXT NOT NULL,
-    visits INTEGER NOT NULL DEFAULT 1,
-    PRIMARY KEY (meeting_id, name)
-  );
-
-  CREATE TABLE IF NOT EXISTS meeting_files (
-    meeting_id TEXT NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
-    path TEXT NOT NULL,
-    kind TEXT NOT NULL CHECK (kind IN ('text', 'asset')),
-    language TEXT,
-    hash TEXT,
-    updated_at TEXT NOT NULL,
-    PRIMARY KEY (meeting_id, path)
-  );
 `);
+
+// Skema tidak lagi ditulis di sini. Berkas di src/migrations/ dijalankan
+// berurutan dan versinya dicatat di PRAGMA user_version, supaya database
+// produksi yang sudah berisi data bisa ikut berubah bentuk tanpa dibuat ulang.
+try {
+  const { applied } = migrate(db);
+  if (applied.length > 0) console.log(`Skema database diperbarui: ${applied.length} migrasi.`);
+} catch (error) {
+  console.error('Migrasi database gagal, server tidak dijalankan.');
+  console.error(error.message);
+  process.exit(1);
+}
 
 // Saat startup belum ada dosen yang terhubung, jadi sesi live sebelum restart dianggap selesai.
 db.prepare("UPDATE meetings SET status = 'finished', ended_at = ? WHERE status = 'live'").run(

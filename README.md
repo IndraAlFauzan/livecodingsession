@@ -497,15 +497,23 @@ Restart backend saat ada sesi live akan memutus dosen. Pertemuan tersebut otomat
 Seluruh data ada di satu file SQLite (default `live-coding-backend/data/livecoding.db`). Untuk backup yang aman meski backend sedang berjalan:
 
 ```bash
+node scripts/backup.js                 # hasilnya di backups/
+```
+
+Skrip itu memakai `VACUUM INTO` dan tidak butuh perkakas tambahan di server — Node sudah ada karena backend memakainya. Cara lain, kalau CLI `sqlite3` terpasang:
+
+```bash
 sqlite3 live-coding-backend/data/livecoding.db ".backup 'backup-$(date +%F).db'"
 ```
+
+Keduanya aman. Yang **tidak** aman adalah `cp livecoding.db`: database memakai mode WAL, jadi perubahan terbaru bisa masih di berkas `-wal` dan tidak ikut tersalin. Diuji pada database yang sedang dipakai, salinan `cp` kehilangan satu tabel penuh dan mata kuliah yang baru dibuat.
 
 Untuk memulihkan, hentikan backend, ganti file database dengan file backup, lalu jalankan lagi.
 
 Contoh backup harian lewat cron (`crontab -e`):
 
 ```
-0 2 * * * sqlite3 /var/www/livecoding/live-coding-backend/data/livecoding.db ".backup '/var/backups/livecoding-$(date +\%F).db'"
+0 2 * * * cd /var/www/livecoding && /usr/bin/node scripts/backup.js /var/backups
 ```
 
 ## Pengujian

@@ -30,7 +30,38 @@ npm run dev
 
 Endpoint `GET /api/admin/meetings/:id/viewers` mengembalikan `viewers` (semua yang pernah masuk, dari tabel `meeting_viewers`) dan `watchingNow` (yang sedang tersambung). Dosen juga menerima pesan WebSocket `room:viewers` setiap ada mahasiswa masuk, keluar, atau berpindah file.
 
-Backup data cukup dengan menyalin file database.
+### Mengubah skema database
+
+Skema tidak ditulis langsung di `db.js`. Setiap perubahan bentuk tabel dibuat sebagai berkas baru bernomor di `src/migrations/`, lalu dijalankan otomatis saat server start. Versi yang sudah diterapkan dicatat di `PRAGMA user_version` di dalam berkas database itu sendiri.
+
+```
+src/migrations/
+  001_skema_awal.sql     tabel awal
+  002_daftar_hadir.sql   meeting_viewers
+```
+
+Menambah perubahan: buat `003_nama_perubahan.sql`, isi dengan `ALTER TABLE` atau `CREATE TABLE` yang diperlukan. Tiap migrasi dibungkus transaksi — kalau gagal, tidak ada yang berubah dan server menolak menyala dengan pesan yang menyebut berkas penyebabnya.
+
+Database yang dibuat sebelum sistem ini ada ditandai otomatis sebagai versi 1, jadi migrasi lama tidak dijalankan ulang di atas data yang sudah ada.
+
+Jangan mengubah berkas migrasi yang sudah pernah jalan di produksi — buat berkas baru.
+
+### Cadangan
+
+```bash
+node scripts/backup.js [folder-tujuan]     # default: backups/
+```
+
+Menghasilkan satu berkas `.db` yang konsisten dan aman dijalankan selagi server hidup.
+
+**Jangan memakai `cp livecoding.db`.** Database memakai mode WAL, jadi perubahan terbaru bisa masih berada di berkas `-wal` dan belum masuk ke `.db`. Diuji pada database yang sedang dipakai:
+
+| Cara | tabel | courses | meeting_viewers |
+|---|---|---|---|
+| `cp livecoding.db` | 4 | 2 | tabel tidak ada |
+| `node scripts/backup.js` | 5 | 3 | 3 |
+
+Salinan `cp` kehilangan satu tabel penuh dan mata kuliah yang baru dibuat. Memulihkan cukup menaruh berkas hasil cadangan sebagai `data/livecoding.db`, atau mengarahkan `DB_PATH` ke sana.
 
 ## REST API
 

@@ -105,11 +105,17 @@ async function main() {
   await sleep(100);
 
   const intruder = await connect();
-  intruder.sendJson({ type: 'student:join', meetingId: p1.id, accessCode: basdat.accessCode });
+  intruder.sendJson({ type: 'student:join', meetingId: p1.id, accessCode: basdat.accessCode, studentName: 'Penyusup' });
   check((await intruder.next('error')).message.includes('Kode akses'), 'mahasiswa dengan kode lain ditolak');
 
+  const nameless = await connect();
+  nameless.sendJson({ type: 'student:join', meetingId: p1.id, accessCode: mobile.accessCode });
+  const namelessError = await nameless.next('error');
+  check(namelessError.reason === 'invalid_name', 'mahasiswa tanpa nama ditolak');
+  nameless.close();
+
   const student = await connect();
-  student.sendJson({ type: 'student:join', meetingId: p1.id, accessCode: mobile.accessCode });
+  student.sendJson({ type: 'student:join', meetingId: p1.id, accessCode: mobile.accessCode, studentName: 'Rina Aprilia' });
   const init = await student.next('session:init');
   check(init.meeting.status === 'live' && init.tree.length === 3 && init.hasTeacher, 'mahasiswa menerima tree live');
 
@@ -152,7 +158,7 @@ async function main() {
   await sleep(100);
 
   const student2 = await connect();
-  student2.sendJson({ type: 'student:join', meetingId: p2.id, accessCode: mobile.accessCode });
+  student2.sendJson({ type: 'student:join', meetingId: p2.id, accessCode: mobile.accessCode, studentName: 'Rina Aprilia' });
   const init2 = await student2.next('session:init');
   check(init2.meeting.continuesFrom?.number === 1, 'label "Lanjutan dari Pertemuan 1" tersedia');
   check(
@@ -177,7 +183,7 @@ async function main() {
   const hiddenList = await api('GET', `/api/student/courses/${mobile.slug}`, { code: mobile.accessCode });
   check(!hiddenList.data.meetings.some((m) => m.id === p2.id), 'pertemuan tersembunyi tidak tampil di daftar');
   const blocked = await connect();
-  blocked.sendJson({ type: 'student:join', meetingId: p2.id, accessCode: mobile.accessCode });
+  blocked.sendJson({ type: 'student:join', meetingId: p2.id, accessCode: mobile.accessCode, studentName: 'Rina Aprilia' });
   check((await blocked.next('error')).message.includes('belum tersedia'), 'pertemuan tersembunyi tidak bisa dibuka');
 
   teacher2.close();

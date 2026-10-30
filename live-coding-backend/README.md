@@ -75,7 +75,7 @@ Mahasiswa:
 Dengan backend berjalan:
 
 ```bash
-TEACHER_TOKEN=<token> node examples/smoke-test.js
+TEACHER_TOKEN=<token> npm test       # sama dengan: node examples/smoke-test.js
 ```
 
 Skrip membuat data uji lalu menghapusnya kembali.

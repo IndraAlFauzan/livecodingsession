@@ -13,6 +13,21 @@ function isPositiveInt(value) {
   return Number.isInteger(value) && value > 0 && value < 1000;
 }
 
+// Pencarian objek + 404 diulang di banyak rute; dijadikan satu di sini.
+function loadCourse(req, res, next) {
+  const course = db.getCourseById(Number(req.params.id));
+  if (!course) return res.status(404).json({ error: 'Mata kuliah tidak ditemukan.' });
+  req.course = course;
+  next();
+}
+
+function loadMeeting(req, res, next) {
+  const meeting = db.getMeeting(req.params.id);
+  if (!meeting) return res.status(404).json({ error: 'Pertemuan tidak ditemukan.' });
+  req.meeting = meeting;
+  next();
+}
+
 function withLiveFlag(meeting) {
   return {
     ...meeting,
@@ -51,10 +66,7 @@ admin.post('/courses', (req, res) => {
   res.status(201).json({ course: db.createCourse(name) });
 });
 
-admin.patch('/courses/:id', (req, res) => {
-  const id = Number(req.params.id);
-  if (!db.getCourseById(id)) return res.status(404).json({ error: 'Mata kuliah tidak ditemukan.' });
-
+admin.patch('/courses/:id', loadCourse, (req, res) => {
   const changes = {};
   if (req.body?.name !== undefined) {
     changes.name = cleanText(req.body.name, 100);
@@ -62,7 +74,7 @@ admin.patch('/courses/:id', (req, res) => {
   }
   if (req.body?.codeActive !== undefined) changes.codeActive = Boolean(req.body.codeActive);
 
-  res.json({ course: db.updateCourse(id, changes) });
+  res.json({ course: db.updateCourse(req.course.id, changes) });
 });
 
 admin.post('/courses/:id/regenerate-code', (req, res) => {
@@ -71,31 +83,23 @@ admin.post('/courses/:id/regenerate-code', (req, res) => {
   res.json({ course });
 });
 
-admin.delete('/courses/:id', (req, res) => {
-  const id = Number(req.params.id);
-  if (!db.getCourseById(id)) return res.status(404).json({ error: 'Mata kuliah tidak ditemukan.' });
-
-  const meetings = db.listMeetings(id);
+admin.delete('/courses/:id', loadCourse, (req, res) => {
+  const meetings = db.listMeetings(req.course.id);
   if (meetings.some((meeting) => live.hasTeacher(meeting.id))) {
     return res.status(409).json({ error: 'Ada pertemuan yang sedang live. Hentikan dulu sesinya.' });
   }
+  for (const meeting of meetings) live.clearReconnecting(meeting.id);
   for (const meeting of meetings) live.kickStudents(meeting.id, 'Mata kuliah ini telah dihapus.');
 
-  db.deleteCourse(id);
+  db.deleteCourse(req.course.id);
   res.status(204).end();
 });
 
-admin.get('/courses/:id/meetings', (req, res) => {
-  const id = Number(req.params.id);
-  const course = db.getCourseById(id);
-  if (!course) return res.status(404).json({ error: 'Mata kuliah tidak ditemukan.' });
-  res.json({ course, meetings: db.listMeetings(id).map(withLiveFlag) });
+admin.get('/courses/:id/meetings', loadCourse, (req, res) => {
+  res.json({ course: req.course, meetings: db.listMeetings(req.course.id).map(withLiveFlag) });
 });
 
-admin.post('/courses/:id/meetings', (req, res) => {
-  const id = Number(req.params.id);
-  if (!db.getCourseById(id)) return res.status(404).json({ error: 'Mata kuliah tidak ditemukan.' });
-
+admin.post('/courses/:id/meetings', loadCourse, (req, res) => {
   const title = req.body?.title === undefined ? '' : cleanText(req.body.title, 200);
   if (title === null) return res.status(400).json({ error: 'Judul pertemuan tidak valid (maks. 200 karakter).' });
 
@@ -105,7 +109,7 @@ admin.post('/courses/:id/meetings', (req, res) => {
   }
 
   try {
-    res.status(201).json({ meeting: withLiveFlag(db.createMeeting(id, { title, number })) });
+    res.status(201).json({ meeting: withLiveFlag(db.createMeeting(req.course.id, { title, number })) });
   } catch (error) {
     if (db.isUniqueViolation(error)) {
       return res.status(409).json({ error: `Pertemuan ${number} sudah ada di mata kuliah ini.` });
@@ -114,10 +118,8 @@ admin.post('/courses/:id/meetings', (req, res) => {
   }
 });
 
-admin.patch('/meetings/:id', (req, res) => {
-  const meeting = db.getMeeting(req.params.id);
-  if (!meeting) return res.status(404).json({ error: 'Pertemuan tidak ditemukan.' });
-
+admin.patch('/meetings/:id', loadMeeting, (req, res) => {
+  const { meeting } = req;
   const changes = {};
   if (req.body?.title !== undefined) {
     changes.title = req.body.title === '' ? '' : cleanText(req.body.title, 200);
@@ -147,18 +149,18 @@ admin.patch('/meetings/:id', (req, res) => {
   res.json({ meeting: withLiveFlag(updated) });
 });
 
-admin.get('/meetings/:id/viewers', (req, res) => {
-  const meeting = db.getMeeting(req.params.id);
-  if (!meeting) return res.status(404).json({ error: 'Pertemuan tidak ditemukan.' });
+admin.get('/meetings/:id/viewers', loadMeeting, (req, res) => {
+  const { meeting } = req;
   res.json({ viewers: db.listViewers(meeting.id), watchingNow: live.listViewers(meeting.id) });
 });
 
-admin.delete('/meetings/:id', (req, res) => {
-  const meeting = db.getMeeting(req.params.id);
-  if (!meeting) return res.status(404).json({ error: 'Pertemuan tidak ditemukan.' });
-  if (live.hasTeacher(meeting.id) || live.isReconnecting(meeting.id)) {
+admin.delete('/meetings/:id', loadMeeting, (req, res) => {
+  const { meeting } = req;
+  if (live.hasTeacher(meeting.id)) {
     return res.status(409).json({ error: 'Pertemuan sedang live. Hentikan dulu sesinya dari VS Code.' });
   }
+  // Menghapus adalah perintah tegas dosen; tidak perlu menunggu masa tenggang habis.
+  live.clearReconnecting(meeting.id);
 
   live.kickStudents(meeting.id, 'Pertemuan ini telah dihapus.');
   db.deleteMeeting(meeting.id);

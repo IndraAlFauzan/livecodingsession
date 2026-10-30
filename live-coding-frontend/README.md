@@ -15,6 +15,24 @@ Web untuk mahasiswa (melihat kode dosen) dan halaman admin dosen. React + Vite +
 
 Viewer menyembunyikan kode saat shortcut screenshot terdeteksi, dan memblokir copy, cut, klik kanan, seret, seleksi teks, serta print. Browser tidak bisa mencegah screenshot dari sistem operasi atau kamera, dan sejak watermark dicabut bocoran tidak bisa dilacak ke mahasiswa asalnya.
 
+## Pengujian
+
+```bash
+npm test          # sekali jalan
+npm run test:watch
+```
+
+Vitest dengan jsdom. Yang diutamakan adalah perilaku yang mahal kalau rusak:
+
+| Berkas | Yang dijaga |
+|---|---|
+| `hooks/useLiveSession.test.js` | percakapan WebSocket: join membawa nama, Follow Dosen, bedanya menunggu dan selesai, penolakan server |
+| `utils/meetingStatus.test.js` | status pertemuan, termasuk masa tenggang yang dulu salah dihitung |
+| `components/ui/Dialog.test.jsx` | fokus awal di Batal, Esc, jebakan Tab, aria |
+| `components/student/JoinCard.test.jsx` | validasi, kode jadi huruf besar, kode mata kuliah lain ditolak |
+
+`src/test/fakeWebSocket.js` adalah WebSocket tiruan yang dikemudikan tes — tidak ada koneksi sungguhan.
+
 ## Menjalankan
 
 ```bash

@@ -35,6 +35,7 @@ done
 judul "Frontend"
 (cd live-coding-frontend && npm run lint >/dev/null 2>&1) && lolos "lint" || tidak "frontend lint"
 (cd live-coding-frontend && npm run build >/dev/null 2>&1) && lolos "build" || tidak "frontend build"
+(cd live-coding-frontend && npm test >/dev/null 2>&1) && lolos "tes unit" || { tidak "frontend tes unit"; (cd live-coding-frontend && npm test 2>&1 | tail -12 | sed 's/^/        /'); }
 
 # ---------- backend ----------
 judul "Backend"

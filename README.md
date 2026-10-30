@@ -269,7 +269,7 @@ Jalankan ini sebelum push; keluar dengan kode 1 kalau ada yang gagal.
 | Bagian | Yang diperiksa |
 |---|---|
 | Lockfile | `package.json` dan `package-lock.json` sinkron di ketiga folder |
-| Frontend | `npm run lint` · `npm run build` |
+| Frontend | `npm run lint` · `npm test` · `npm run build` |
 | Backend | smoke test 35 pengecekan |
 | Extension | `npm run compile` |
 

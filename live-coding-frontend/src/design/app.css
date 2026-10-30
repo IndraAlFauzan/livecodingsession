@@ -144,12 +144,6 @@
   min-width: 0;
 }
 
-.lc-sessionbar__copyright {
-  margin-left: auto;
-  font-size: 12px;
-  color: var(--muted);
-}
-
 .lc-notice {
   flex-direction: row;
   align-items: center;
@@ -172,8 +166,7 @@
   }
 
   .lc-session__files {
-    display: inline-flex;
-    justify-self: start;
+    display: flex;
   }
 
   .lc-session__tree {
@@ -181,7 +174,6 @@
     inset: auto 0 0 0;
     z-index: 30;
     max-height: 70vh;
-    padding: var(--space-4);
     transform: translateY(110%);
     transition: transform var(--ease);
   }
@@ -240,6 +232,469 @@
   font-size: 13px;
 }
 
+/* ---------- jendela kode ala VS Code ---------- */
+/* Mahasiswa sehari-hari memakai VS Code, jadi area kode meniru workbench-nya: satu bingkai
+   bersudut kecil, tanpa celah dan radius di dalam, baris Explorer 22px, tab 35px, status bar 22px.
+   Kartu membulat dari design system tetap dipakai di luar area ini. */
+
+.lc-ide {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--code-bg);
+  color: var(--on-code);
+}
+
+/* Layar sesi adalah satu jendela penuh; tidak ada kanvas yang mengelilinginya. */
+.lc-session-page {
+  padding: 0;
+  gap: 0;
+}
+
+/* ---------- title bar jendela ---------- */
+
+.lc-titlebar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-4);
+  background: var(--code-panel);
+  border-bottom: 1px solid var(--code-line);
+}
+
+.lc-titlebar__id {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.lc-titlebar__crumb {
+  font-size: 11px;
+  line-height: 15px;
+  color: var(--on-code-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lc-titlebar__title {
+  font-size: 14px;
+  line-height: 19px;
+  font-weight: 700;
+  color: var(--on-code);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lc-titlebar__clock {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--on-code);
+}
+
+.lc-titlebar__spacer {
+  flex: 1;
+}
+
+.lc-titlebar__link {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--code-ruler);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.lc-titlebar__link:hover {
+  text-decoration: underline;
+}
+
+.lc-titlebar__user {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--on-code);
+  white-space: nowrap;
+}
+
+/* ---------- banner di dalam jendela ---------- */
+
+.lc-ide__notice {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-2) var(--space-4);
+  background: var(--violet-soft);
+  border-bottom: 1px solid var(--code-line);
+  color: var(--violet-ink);
+  font-size: 13px;
+}
+
+.lc-ide__notice p {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+.lc-ide__notice-close {
+  height: 26px;
+  padding: 0 var(--space-3);
+  border: 1px solid currentColor;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lc-ide .lc-session {
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 0;
+}
+
+.lc-ide .lc-session__tree {
+  background: var(--code-panel);
+  border-right: 1px solid var(--code-line);
+}
+
+.lc-ide .lc-codepanel,
+.lc-ide .lc-protected__shield,
+.lc-ide .lc-shield {
+  border-radius: 0;
+}
+
+.lc-session__files {
+  align-items: center;
+  gap: var(--space-2);
+  height: 35px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-bottom: 1px solid var(--code-line);
+  background: var(--code-panel);
+  color: var(--on-code);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.lc-session__files .lc-ico {
+  width: 16px;
+  height: 16px;
+  color: var(--on-code-muted);
+}
+
+/* Explorer */
+
+.lc-explorer {
+  padding-bottom: var(--space-2);
+}
+
+.lc-explorer__head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 35px;
+  padding: 0 var(--space-3) 0 20px;
+  background: var(--code-panel);
+  color: var(--on-code-muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.lc-explorer__head > span:first-child {
+  flex: 1;
+}
+
+.lc-explorer__count {
+  color: var(--amber);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.lc-explorer__empty {
+  margin: 0;
+  padding: var(--space-1) 20px;
+  font-size: 13px;
+  color: var(--on-code-muted);
+}
+
+.lc-ide .lc-tree {
+  gap: 0;
+}
+
+.lc-ide .lc-tree__row {
+  gap: 6px;
+  height: 22px;
+  padding-right: var(--space-3);
+  border-radius: 0;
+  color: var(--on-code);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.lc-ide .lc-tree__row:hover {
+  background: var(--code-line);
+}
+
+.lc-ide .lc-tree__row.is-selected {
+  background: var(--code-highlight);
+  color: var(--on-code);
+  font-weight: 400;
+}
+
+.lc-ide .lc-tree__row:focus-visible {
+  outline: 1px solid var(--code-ruler);
+  outline-offset: -1px;
+  box-shadow: none;
+}
+
+.lc-ide .lc-tree__row .lc-ico,
+.lc-ide .lc-tree__row.is-selected .lc-ico {
+  flex-shrink: 0;
+  color: var(--on-code-muted);
+}
+
+/* Ikon folder dan file sama besar, sedikit lebih kecil dari ukuran dasar 18px. */
+.lc-ide .lc-tree__icon {
+  width: 15px;
+  height: 15px;
+}
+
+.lc-ide .lc-tree__chev {
+  flex-shrink: 0;
+}
+
+/* Warna nama file mengikuti dekorasi git VS Code: hijau baru, kuning diubah. */
+.lc-ide .lc-tree__row.is-new {
+  color: var(--lime);
+}
+
+.lc-ide .lc-tree__row.is-modified {
+  color: var(--amber);
+}
+
+.lc-tree__mark {
+  flex-shrink: 0;
+  font-size: 12px;
+}
+
+.lc-tree__mark--teacher {
+  color: var(--code-ruler);
+  font-weight: 600;
+}
+
+.lc-tree__dot {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--amber);
+}
+
+.lc-ide .lc-tree__pulse {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  background: var(--code-ruler);
+  box-shadow: none;
+}
+
+/* Tab dan breadcrumb */
+
+.lc-ide .lc-codepanel__tabs {
+  flex-shrink: 0;
+  height: 35px;
+  padding: 0;
+  gap: 0;
+  background: var(--code-panel);
+  box-shadow: inset 0 -1px 0 var(--code-line);
+}
+
+.lc-ide .lc-codepanel__tab {
+  height: 35px;
+  padding: 0 var(--space-3);
+  border-radius: 0;
+  border-right: 1px solid var(--code-line);
+  font-family: var(--font-sans);
+  font-size: 13px;
+}
+
+.lc-ide .lc-codepanel__tab.is-active {
+  background: var(--code-bg);
+  box-shadow: inset 0 1px 0 var(--code-ruler);
+}
+
+.lc-ide .lc-codepanel__tab .lc-ico {
+  width: 16px;
+  height: 16px;
+  color: var(--on-code-muted);
+}
+
+.lc-ide .lc-codepanel__bar {
+  flex-shrink: 0;
+  min-height: 22px;
+  flex-wrap: wrap;
+  padding: 0 var(--space-3) 0 var(--space-4);
+  background: var(--code-bg);
+  border-bottom: 0;
+}
+
+.lc-ide .lc-codepanel__path {
+  font-family: var(--font-sans);
+}
+
+.lc-codepanel__sep {
+  width: 12px;
+  height: 12px;
+  margin: 0 2px;
+  vertical-align: -2px;
+}
+
+.lc-ide .lc-codepanel__hl {
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 2px;
+  font-weight: 500;
+}
+
+.lc-ide .lc-codepanel__hl i {
+  width: 3px;
+  height: 12px;
+  border-radius: 0;
+}
+
+/* Status bar: gelap seperti editor, violet selama sesi live (seperti VS Code berganti warna saat debug). */
+
+.lc-statusbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  min-height: 22px;
+  padding: 0 var(--space-1);
+  background: var(--code-panel);
+  border-top: 1px solid var(--code-line);
+  color: var(--on-code-muted);
+  font-size: 12px;
+}
+
+.lc-statusbar.is-live {
+  background: var(--violet-strong);
+  border-top-color: var(--violet-strong);
+  color: var(--on-violet);
+}
+
+.lc-statusbar__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 var(--space-2);
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.lc-statusbar__spacer {
+  flex: 1;
+}
+
+.lc-statusbar__teacher,
+.lc-statusbar__copyright {
+  display: inline-block;
+  line-height: 22px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Path dosen dibatasi supaya tidak mendorong item lain keluar bar. */
+.lc-statusbar__teacher {
+  max-width: min(40ch, 100%);
+}
+
+.lc-statusbar__teacher .lc-mono {
+  font-size: 12px;
+}
+
+.lc-statusbar__button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.lc-statusbar__button:hover {
+  background: var(--code-line);
+}
+
+.lc-statusbar.is-live .lc-statusbar__button:hover {
+  background: var(--violet);
+}
+
+.lc-statusbar__button:focus-visible {
+  outline: 1px solid currentColor;
+  outline-offset: -1px;
+  box-shadow: none;
+}
+
+.lc-statusbar .lc-conn {
+  font-weight: 400;
+}
+
+.lc-statusbar .lc-conn--on,
+.lc-statusbar .lc-conn--wait {
+  color: inherit;
+}
+
+.lc-statusbar .lc-conn--on i {
+  background: var(--lime);
+}
+
+@media (max-width: 719px) {
+  /* Bar path dapat barisnya sendiri supaya nama file tidak terpangkas chip sorotan. */
+  .lc-ide .lc-codepanel__path {
+    flex-basis: 100%;
+  }
+
+  .lc-statusbar__spacer {
+    display: none;
+  }
+
+  .lc-statusbar__copyright {
+    flex-basis: 100%;
+  }
+}
+
+@media (max-width: 899px) {
+  .lc-ide .lc-session {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .lc-ide .lc-session__tree {
+    border-right: 0;
+    border-top: 1px solid var(--code-line);
+  }
+}
+
 /* Sorotan dosen: sama persis dengan .lc-ln.is-hl di bundle.css. */
 .lcc-highlight {
   background: var(--code-highlight);
@@ -267,14 +722,6 @@
 
 .lc-protected__content.is-hidden {
   visibility: hidden;
-}
-
-.lc-protected__watermark {
-  position: absolute;
-  inset: 0;
-  z-index: 5;
-  pointer-events: none;
-  background-repeat: repeat;
 }
 
 .lc-protected__shield {
@@ -394,6 +841,13 @@ a.lc-btn {
 
 .lc-meeting__action {
   align-self: flex-start;
+}
+
+.lc-meeting__clock {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--live-ink);
 }
 
 .lc-table__rename {

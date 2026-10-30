@@ -360,6 +360,7 @@ function CourseDetail({ api, course, onError, onCourseChanged, onLogout }) {
             continuesFrom={featured.continuesFrom?.number}
             title={featured.title}
             date={featured.startedAt ? formatDateTime(featured.startedAt) : undefined}
+            startedAt={featured.startedAt}
             action={
               <Button
                 variant="secondary"

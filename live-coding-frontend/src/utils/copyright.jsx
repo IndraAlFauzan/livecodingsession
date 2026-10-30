@@ -1,5 +1,5 @@
 export function copyrightText() {
-  return `Copyright © ${new Date().getFullYear()} OCH, Software Engineering Study Program`;
+  return `Copyright © ${new Date().getFullYear()} Rekayasa Perangkat Lunak, Telkom University`;
 }
 
 export default function Copyright({ className }) {

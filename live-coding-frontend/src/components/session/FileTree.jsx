@@ -1,7 +1,11 @@
 import { useState } from "react";
-import Badge from "../ui/Badge.jsx";
-import Card from "../ui/Card.jsx";
 import Icon from "../ui/Icon.jsx";
+
+// Penanda ala dekorasi git di Explorer VS Code: teks berwarna di kanan, bukan pil.
+const MARKS = {
+  new: ["new", "Baru"],
+  modified: ["modified", "Diubah"],
+};
 
 function folderHasChanges(folderPath, changes) {
   const prefix = `${folderPath}/`;
@@ -9,25 +13,24 @@ function folderHasChanges(folderPath, changes) {
 }
 
 function TreeNode({ node, depth, selectedFile, activeFile, flashFiles, changes, onSelectFile }) {
-  // Terbuka secara bawaan supaya badge Dosen, Baru dan Diubah langsung terlihat.
+  // Terbuka secara bawaan supaya penanda Dosen, Baru dan Diubah langsung terlihat.
   const [expanded, setExpanded] = useState(true);
-  const pad = { paddingLeft: 8 + depth * 16 };
+  const pad = { paddingLeft: 8 + depth * 12 };
 
   if (node.type === "folder") {
+    const changed = folderHasChanges(node.path, changes);
     return (
       <>
         <button
           type="button"
-          className="lc-tree__row"
+          className={["lc-tree__row", changed && "is-modified"].filter(Boolean).join(" ")}
           style={pad}
           aria-expanded={expanded}
           onClick={() => setExpanded((value) => !value)}>
           <Icon name={expanded ? "chevron-down" : "chevron-right"} className="lc-tree__chev" />
-          <Icon name="folder" />
+          <Icon name="folder" className="lc-tree__icon" />
           <span className="lc-tree__name">{node.name}</span>
-          {folderHasChanges(node.path, changes) && (
-            <i className="lc-badge__dot" style={{ color: "var(--amber)" }} title="Ada file yang berubah" />
-          )}
+          {changed && <i className="lc-tree__dot" title="Ada file yang berubah" />}
         </button>
 
         {expanded &&
@@ -47,52 +50,48 @@ function TreeNode({ node, depth, selectedFile, activeFile, flashFiles, changes, 
     );
   }
 
-  const change = changes[node.path];
+  const mark = MARKS[changes[node.path]];
   const isTeacherFile = activeFile === node.path;
   const flashing = flashFiles.has(node.path);
+  const classes = ["lc-tree__row", selectedFile === node.path && "is-selected", mark && `is-${mark[0]}`];
 
   return (
     <button
       type="button"
-      className={["lc-tree__row", selectedFile === node.path && "is-selected"].filter(Boolean).join(" ")}
+      className={classes.filter(Boolean).join(" ")}
       style={pad}
       title={node.path}
       onClick={() => onSelectFile(node.path)}>
-      <span style={{ width: 14 }} />
-      <Icon name="file" />
+      <span className="lc-tree__chev" />
+      <Icon name="file" className="lc-tree__icon" />
       <span className="lc-tree__name">{node.name}</span>
-      {change && <Badge status={change} size="sm" />}
-      {isTeacherFile && <Badge status="teacher" size="sm" />}
       {flashing && <i className="lc-tree__pulse" title="Baru saja disimpan" />}
+      {isTeacherFile && <span className="lc-tree__mark lc-tree__mark--teacher">Dosen</span>}
+      {mark && <span className="lc-tree__mark">{mark[1]}</span>}
     </button>
   );
 }
 
 export default function FileTree({ nodes, changeCount, changeHint, ...rest }) {
   return (
-    <Card
-      title="File project"
-      icon="folder"
-      actions={
-        changeCount > 0 ? (
-          <span title={changeHint}>
-            <Badge tone="amber" size="sm">
-              {changeCount} berubah
-            </Badge>
+    <nav className="lc-explorer" aria-label="File project">
+      <div className="lc-explorer__head">
+        <span>File project</span>
+        {changeCount > 0 && (
+          <span className="lc-explorer__count" title={changeHint}>
+            {changeCount} berubah
           </span>
-        ) : null
-      }>
+        )}
+      </div>
       {nodes && nodes.length > 0 ? (
         <div className="lc-tree">
           {nodes.map((node) => (
-            <TreeNode key={node.path} node={node} depth={0} changes={rest.changes} {...rest} />
+            <TreeNode key={node.path} node={node} depth={0} {...rest} />
           ))}
         </div>
       ) : (
-        <p className="lc-muted" style={{ margin: 0 }}>
-          Belum ada struktur project.
-        </p>
+        <p className="lc-explorer__empty">Belum ada struktur project.</p>
       )}
-    </Card>
+    </nav>
   );
 }

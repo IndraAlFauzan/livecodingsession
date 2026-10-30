@@ -47,6 +47,7 @@ function buildInit(meetingId) {
       status: meeting.status,
       projectName: meeting.projectName,
       continuesFrom: meeting.continuesFrom,
+      startedAt: meeting.startedAt,
     },
     tree: db.getMeetingTree(meetingId),
     activeFile: meeting.activeFile,

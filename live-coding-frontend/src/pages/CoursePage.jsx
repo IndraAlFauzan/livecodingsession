@@ -68,6 +68,7 @@ export default function CoursePage() {
         continuesFrom={meeting.continuesFrom?.number}
         title={meeting.title}
         date={meeting.startedAt ? formatDateTime(meeting.startedAt) : undefined}
+        startedAt={meeting.startedAt}
         action={
           meeting.status === "live" ? (
             <Button variant="violet" icon="radio" onClick={() => open(meeting)}>

@@ -13,7 +13,7 @@ Web untuk mahasiswa (melihat kode dosen) dan halaman admin dosen. React + Vite +
 
 ## Perlindungan kode
 
-Viewer memberi watermark nama mahasiswa, menyembunyikan kode saat shortcut screenshot terdeteksi, dan memblokir copy, klik kanan, serta print. Browser tidak bisa mencegah screenshot dari sistem operasi atau kamera; watermark membuat bocoran bisa dilacak.
+Viewer menyembunyikan kode saat shortcut screenshot terdeteksi, dan memblokir copy, cut, klik kanan, seret, seleksi teks, serta print. Browser tidak bisa mencegah screenshot dari sistem operasi atau kamera, dan sejak watermark dicabut bocoran tidak bisa dilacak ke mahasiswa asalnya.
 
 ## Menjalankan
 

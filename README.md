@@ -238,11 +238,10 @@ Kode akses membatasi mahasiswa ke mata kuliahnya sendiri. Bila kode tersebar ke 
 
 ### Perlindungan dari screenshot
 Viewer mahasiswa:
-- menampilkan watermark nama mahasiswa, nama mata kuliah, dan tanggal di atas kode,
 - menyembunyikan kode saat shortcut screenshot terdeteksi (PrintScreen, Cmd+Shift, Win+Shift) sampai mahasiswa menekan "Tampilkan lagi",
 - memblokir copy, cut, klik kanan, seleksi teks, dan print.
 
-**Batasannya:** browser tidak bisa mencegah screenshot sepenuhnya. Foto dari kamera HP, screenshot lewat menu sistem operasi, dan DevTools tetap bisa dipakai. Watermark membuat screenshot yang tersebar bisa dilacak ke akun asalnya.
+**Batasannya:** browser tidak bisa mencegah screenshot sepenuhnya. Foto dari kamera HP, screenshot lewat menu sistem operasi, dan DevTools tetap bisa dipakai. Tidak ada penanda identitas di atas kode, jadi screenshot yang tersebar tidak bisa dilacak ke mahasiswa asalnya.
 
 ### Data yang dikirim
 Extension hanya mengirim file di dalam folder project yang tidak dikecualikan. File yang disembunyikan atau dikecualikan tidak pernah meninggalkan komputer dosen.

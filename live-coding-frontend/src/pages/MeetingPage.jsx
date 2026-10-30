@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import AccessGate from "../components/AccessGate.jsx";
-import AppHeader from "../components/layout/AppHeader.jsx";
+import SessionHeader from "../components/session/SessionHeader.jsx";
 import ProtectedArea from "../components/ProtectedArea.jsx";
 import CodePanel from "../components/session/CodePanel.jsx";
 import FileTree from "../components/session/FileTree.jsx";
 import SessionBar from "../components/session/SessionBar.jsx";
-import { Badge, Button, Card, EmptyState } from "../components/ui/index.js";
+import { Card, EmptyState, Icon } from "../components/ui/index.js";
 import { WS_URL } from "../config.js";
 import { getCourseAccess, storage } from "../lib/storage.js";
 import { sortTree } from "../utils/tree.js";
@@ -249,78 +249,83 @@ function MeetingViewer({ slug, meetingId, access, onAccessRevoked }) {
 
   const isLive = meeting?.status === "live" && hasTeacher;
   const courseName = course?.name || access.courseName;
-  const watermark = `${access.studentName} · ${courseName} · ${new Date().toLocaleDateString("id-ID")}`;
   const changeCount = Object.keys(changes).length;
   const highlights = isLive && teacherSelection?.path === selectedFile ? teacherSelection.selections : null;
 
   return (
     <div className="lc-page lc-session-page">
-      <AppHeader
-        crumb={`${courseName} / ${meeting ? `Pertemuan ${meeting.number}` : "Pertemuan"}`}
-        title={meeting ? meeting.title || `Pertemuan ${meeting.number}` : "Memuat pertemuan..."}
-        badge={meeting ? <Badge status={isLive ? "live" : "finished"} /> : null}
-        meta={
-          meeting?.continuesFrom && (
-            <Link className="lc-link" to={`/mk/${slug}/p/${meeting.continuesFrom.id}`}>
-              Lanjutan dari pertemuan {meeting.continuesFrom.number}
-            </Link>
-          )
-        }
-        user={access.studentName}
-      />
+      {/* Satu jendela ala VS Code: title bar, Explorer, editor dan status bar menempel tanpa celah. */}
+      <div className="lc-ide">
+        <SessionHeader
+          crumb={`${courseName} / ${meeting ? `Pertemuan ${meeting.number}` : "Pertemuan"}`}
+          title={meeting ? meeting.title || `Pertemuan ${meeting.number}` : "Memuat pertemuan..."}
+          hasMeeting={Boolean(meeting)}
+          isLive={isLive}
+          startedAt={meeting?.startedAt}
+          meta={
+            meeting?.continuesFrom && (
+              <Link className="lc-titlebar__link" to={`/mk/${slug}/p/${meeting.continuesFrom.id}`}>
+                Lanjutan dari pertemuan {meeting.continuesFrom.number}
+              </Link>
+            )
+          }
+          student={access.studentName}
+        />
 
-      {notice && (
-        <Card className="lc-notice" role="alert">
-          <p>{notice}</p>
-          <Button variant="secondary" size="sm" onClick={() => setNotice(null)}>
-            Tutup
-          </Button>
-        </Card>
-      )}
+        {notice && (
+          <div className="lc-ide__notice" role="alert">
+            <p>{notice}</p>
+            <button type="button" className="lc-ide__notice-close" onClick={() => setNotice(null)}>
+              Tutup
+            </button>
+          </div>
+        )}
 
-      <ProtectedArea watermark={watermark}>
-        <div className={["lc-session", sheetOpen && "is-sheet-open"].filter(Boolean).join(" ")}>
-          <Button
-            className="lc-session__files"
-            variant="secondary"
-            icon="folder"
-            aria-expanded={sheetOpen}
-            onClick={() => setSheetOpen((value) => !value)}>
-            File project
-          </Button>
+        <ProtectedArea>
+          <div className={["lc-session", sheetOpen && "is-sheet-open"].filter(Boolean).join(" ")}>
+            <button
+              type="button"
+              className="lc-session__files"
+              aria-expanded={sheetOpen}
+              onClick={() => setSheetOpen((value) => !value)}>
+              <Icon name="folder" />
+              File project
+            </button>
 
-          <div className="lc-session__scrim" onClick={() => setSheetOpen(false)} aria-hidden="true" />
+            <div className="lc-session__scrim" onClick={() => setSheetOpen(false)} aria-hidden="true" />
 
-          <div className="lc-session__tree">
-            <FileTree
-              nodes={tree}
-              changeCount={meeting?.continuesFrom ? changeCount : 0}
-              changeHint={meeting?.continuesFrom ? `Dibanding Pertemuan ${meeting.continuesFrom.number}` : undefined}
-              selectedFile={selectedFile}
-              activeFile={isLive ? activeFile : null}
-              flashFiles={flashFiles}
-              changes={changes}
-              onSelectFile={openFile}
+            <div className="lc-session__tree">
+              <FileTree
+                nodes={tree}
+                changeCount={meeting?.continuesFrom ? changeCount : 0}
+                changeHint={meeting?.continuesFrom ? `Dibanding Pertemuan ${meeting.continuesFrom.number}` : undefined}
+                selectedFile={selectedFile}
+                activeFile={isLive ? activeFile : null}
+                flashFiles={flashFiles}
+                changes={changes}
+                onSelectFile={openFile}
+              />
+            </div>
+
+            <CodePanel
+              path={selectedFile}
+              file={selectedFile ? files[selectedFile] : null}
+              highlights={highlights}
+              followHighlights={followTeacher}
             />
           </div>
+        </ProtectedArea>
 
-          <CodePanel
-            path={selectedFile}
-            file={selectedFile ? files[selectedFile] : null}
-            highlights={highlights}
-            followHighlights={followTeacher}
-          />
-        </div>
-      </ProtectedArea>
-
-      <SessionBar
-        connectionStatus={connectionStatus}
-        teacherFile={activeFile}
-        follow={followTeacher}
-        onFollowChange={setFollowTeacher}
-        student={access.studentName}
-        isLive={isLive}
-      />
+        <SessionBar
+          connectionStatus={connectionStatus}
+          teacherFile={activeFile}
+          follow={followTeacher}
+          onFollowChange={setFollowTeacher}
+          student={access.studentName}
+          isLive={isLive}
+          language={selectedFile ? files[selectedFile]?.language : null}
+        />
+      </div>
     </div>
   );
 }

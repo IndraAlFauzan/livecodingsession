@@ -9,6 +9,10 @@ function highlightLabel(highlights) {
   return start === end ? `baris ${start}` : `baris ${start}–${end}`;
 }
 
+function monoFont() {
+  return getComputedStyle(document.documentElement).getPropertyValue("--font-mono").trim();
+}
+
 // Tema Monaco dibangun dari token code-* dan syn-* yang sedang berlaku.
 function defineTheme(monaco) {
   const style = getComputedStyle(document.documentElement);
@@ -47,6 +51,10 @@ function defineTheme(monaco) {
       "editorWidget.border": token("--code-line"),
       "editorIndentGuide.background": token("--code-line"),
       "editorIndentGuide.activeBackground": token("--code-line"),
+      "editorStickyScroll.background": token("--code-bg"),
+      "editorStickyScrollHover.background": token("--code-panel"),
+      "editorStickyScroll.border": token("--code-line"),
+      "editorStickyScroll.shadow": token("--code-bg"),
       "scrollbarSlider.background": token("--code-line"),
       "scrollbarSlider.hoverBackground": token("--code-line"),
       "scrollbarSlider.activeBackground": token("--code-ruler"),
@@ -54,25 +62,36 @@ function defineTheme(monaco) {
   });
 }
 
-function Shell({ path, language, highlights, children }) {
+function Shell({ path, highlights, children }) {
+  const segments = path ? path.split("/") : [];
   return (
     <section className="lc-codepanel lc-session__panel">
       <div className="lc-codepanel__tabs">
-        <span className="lc-codepanel__tab is-active">
-          <Icon name="file" />
-          {path ? path.split("/").pop() : "Tidak ada file dipilih"}
-        </span>
-      </div>
-      <div className="lc-codepanel__bar">
-        <span className="lc-codepanel__path">{path || "Tidak ada file dipilih"}</span>
-        {highlights?.length > 0 && (
-          <span className="lc-codepanel__hl">
-            <i />
-            {`Disorot dosen · ${highlightLabel(highlights)}`}
+        {path && (
+          <span className="lc-codepanel__tab is-active">
+            <Icon name="file" />
+            {segments[segments.length - 1]}
           </span>
         )}
-        {language && <span className="lc-codepanel__lang">{language}</span>}
       </div>
+      {path && (
+        <div className="lc-codepanel__bar">
+          <span className="lc-codepanel__path" title={path}>
+            {segments.map((segment, index) => (
+              <span key={index}>
+                {index > 0 && <Icon name="chevron-right" className="lc-codepanel__sep" />}
+                {segment}
+              </span>
+            ))}
+          </span>
+          {highlights?.length > 0 && (
+            <span className="lc-codepanel__hl">
+              <i />
+              {`Disorot dosen · ${highlightLabel(highlights)}`}
+            </span>
+          )}
+        </div>
+      )}
       {children}
     </section>
   );
@@ -88,6 +107,8 @@ export default function CodePanel({ path, file, highlights, followHighlights }) 
     editorRef.current = editor;
     monacoRef.current = monaco;
     decorationsRef.current = editor.createDecorationsCollection();
+    // Monaco mengukur lebar karakter saat mount; ukur ulang setelah JetBrains Mono selesai dimuat.
+    document.fonts?.ready.then(() => monaco.editor.remeasureFonts());
     editor.onDidDispose(() => {
       editorRef.current = null;
       decorationsRef.current = null;
@@ -129,7 +150,7 @@ export default function CodePanel({ path, file, highlights, followHighlights }) 
 
   if (file?.type === "asset") {
     return (
-      <Shell path={path} language="asset">
+      <Shell path={path}>
         <div className="lc-codepanel__asset">
           <strong>File aset</strong>
           <p>Pratinjau file gambar/media belum tersedia.</p>
@@ -142,7 +163,7 @@ export default function CodePanel({ path, file, highlights, followHighlights }) 
   const language = file?.language || "plaintext";
 
   return (
-    <Shell path={path} language={language} highlights={highlights}>
+    <Shell path={path} highlights={highlights}>
       {file ? (
         <div className="lc-codepanel__editor">
           <Editor
@@ -157,7 +178,9 @@ export default function CodePanel({ path, file, highlights, followHighlights }) 
               domReadOnly: true,
               contextmenu: false,
               minimap: { enabled: false },
+              fontFamily: monoFont(),
               fontSize: 14,
+              lineHeight: 21,
               wordWrap: "on",
               scrollBeyondLastLine: false,
               copyWithSyntaxHighlighting: false,

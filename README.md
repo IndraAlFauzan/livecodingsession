@@ -1,7 +1,5 @@
 # Live Coding Classroom
 
-[![CI](https://github.com/IndraAlFauzan/livecodingsession/actions/workflows/ci.yml/badge.svg)](https://github.com/IndraAlFauzan/livecodingsession/actions/workflows/ci.yml)
-
 Sistem untuk membagikan sesi live coding dosen ke mahasiswa secara real-time, sekaligus menyimpan kode setiap pertemuan supaya bisa dibuka lagi kapan saja.
 
 Dosen cukup mengetik di VS Code seperti biasa. Mahasiswa membuka browser, memasukkan kode akses mata kuliah, lalu melihat file tree dan isi file yang sedang dikerjakan dosen, termasuk file yang sedang dibuka dosen ("Follow Dosen"). Setelah kelas selesai, kode tersimpan sebagai arsip pertemuan yang bisa dibuka read-only.
@@ -260,26 +258,30 @@ Menghentikan sesi dari VS Code mengakhiri pertemuan seketika tanpa tenggang.
 ### Data yang dikirim
 Extension hanya mengirim file di dalam folder project yang tidak dikecualikan. File yang disembunyikan atau dikecualikan tidak pernah meninggalkan komputer dosen.
 
-## Pemeriksaan otomatis
+## Pemeriksaan sebelum push
 
-Setiap push ke `main` dan setiap pull request menjalankan `.github/workflows/ci.yml`:
-
-| Job | Yang dijalankan |
-|---|---|
-| Frontend | `npm ci` · `npm run lint` · `npm run build` |
-| Backend | `npm ci` · nyalakan server dengan database sementara · `npm test` (35 pengecekan) |
-| Extension | `npm ci` · `npm run compile` · `vsce package` |
-
-Ketiganya memakai Node 22. Backend memakai `node:sqlite` bawaan Node, jadi Node 20 ke bawah tidak bisa menjalankannya — batas itu ditulis di `engines` tiap `package.json`.
-
-Menjalankan pemeriksaan yang sama di komputer sendiri:
+Jalankan ini sebelum push; keluar dengan kode 1 kalau ada yang gagal.
 
 ```bash
-cd live-coding-frontend && npm run lint && npm run build
-cd ../live-coding-backend && npm start &   # lalu di terminal lain:
-TEACHER_TOKEN=<token> npm test
-cd ../live-coding-classroom && npm run compile
+./scripts/check.sh
 ```
+
+| Bagian | Yang diperiksa |
+|---|---|
+| Lockfile | `package.json` dan `package-lock.json` sinkron di ketiga folder |
+| Frontend | `npm run lint` · `npm run build` |
+| Backend | smoke test 35 pengecekan |
+| Extension | `npm run compile` |
+
+Backend diuji di port 3999 dengan database sementara, jadi server dev dan `data/livecoding.db` tidak tersentuh.
+
+Semuanya butuh Node 22 ke atas — backend memakai `node:sqlite` bawaan Node, dan batas itu ditulis di `engines` tiap `package.json`.
+
+### GitHub Actions (nonaktif)
+
+`.github/workflows/ci.yml` berisi workflow yang menjalankan ketiga pemeriksaan di atas secara otomatis, tapi **pemicunya sedang dimatikan**: akun GitHub terkunci karena masalah penagihan, sehingga runner tidak pernah menyala dan setiap commit akan ditandai merah.
+
+Menghidupkannya setelah penagihan beres: hapus tanda komentar pada dua baris `push:` dan `pull_request:` di berkas itu. Deploy Coolify tidak terpengaruh — ia memakai webhook sendiri, terpisah dari Actions.
 
 ## Deploy dengan Docker (Coolify)
 

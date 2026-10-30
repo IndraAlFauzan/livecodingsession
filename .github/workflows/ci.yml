@@ -1,14 +1,22 @@
 # Menjalankan pemeriksaan yang sama untuk ketiga bagian setiap kali kode masuk.
 # Backend memakai node:sqlite bawaan Node, jadi versi Node minimal 22.
 #
-# Alur: kerjakan di branch fitur, buka PR ke main. CI jadi syarat merge,
-# jadi apa pun yang masuk main sudah diperiksa -- dan Coolify deploy dari main.
+# NONAKTIF untuk sekarang: akun GitHub terkunci karena masalah penagihan,
+# jadi runner tidak pernah menyala dan setiap commit akan ditandai merah.
+# Selama itu pakai ./scripts/check.sh yang menjalankan urutan yang sama.
+#
+# MENGHIDUPKAN LAGI setelah penagihan beres: hapus tanda komentar pada dua
+# baris `push:` dan `pull_request:` di bawah ini.
+#
+# Alur yang dituju: kerjakan di branch fitur, buka PR ke main. CI jadi syarat
+# merge, jadi apa pun yang masuk main sudah diperiksa.
 name: CI
 
 on:
-  push:
-    branches: [main]
-  pull_request:
+  workflow_dispatch:
+  # push:
+  #   branches: [main]
+  # pull_request:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -59,15 +67,20 @@ jobs:
           PUBLIC_BASE_URL: http://localhost:5174
         run: |
           node src/index.js > "$RUNNER_TEMP/backend.log" 2>&1 &
+          server=$!
           # trap, bukan kill di akhir: di bawah `bash -e` baris setelah tes yang
           # gagal tidak pernah dieksekusi, jadi servernya akan tertinggal hidup.
-          trap 'kill %1 2>/dev/null || true' EXIT
+          # PID eksplisit, bukan %1, supaya tidak bergantung pada tabel job shell.
+          trap 'kill "$server" 2>/dev/null || true' EXIT
+
+          # Timeout supaya masalah jaringan gagal cepat, bukan menggantung 6 jam.
+          ready() { curl -sf --connect-timeout 2 --max-time 5 http://localhost:3000/health > /dev/null; }
 
           for _ in $(seq 1 30); do
-            curl -sf http://localhost:3000/health > /dev/null && break
+            ready && break
             sleep 1
           done
-          if ! curl -sf http://localhost:3000/health > /dev/null; then
+          if ! ready; then
             echo "Server tidak kunjung siap:"
             cat "$RUNNER_TEMP/backend.log"
             exit 1

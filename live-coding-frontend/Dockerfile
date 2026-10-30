@@ -16,9 +16,12 @@ ENV VITE_WS_URL=$VITE_WS_URL \
 # Tanpa VITE_WS_URL, src/config.js diam-diam jatuh ke ws://localhost:3000:
 # build sukses, container sehat, tapi mahasiswa tidak pernah tersambung.
 # Lebih baik build-nya gagal di sini daripada rusaknya baru ketahuan di kelas.
+# VITE_API_URL opsional: kalau kosong, config.js menurunkannya dari VITE_WS_URL
+# (wss://host -> https://host), dan itu memang nilai yang benar.
 RUN test -n "$VITE_WS_URL" || { \
       echo "GAGAL: VITE_WS_URL wajib diisi saat build image frontend." >&2; \
-      echo "       Di Coolify: isi build variable VITE_WS_URL dan VITE_API_URL." >&2; \
+      echo "       Di Coolify: isi build variable VITE_WS_URL," >&2; \
+      echo "       contoh wss://api-live.devrisetiaf.cloud" >&2; \
       exit 1; \
     }
 

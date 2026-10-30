@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Icon from "../ui/Icon.jsx";
 
 // Penanda ala dekorasi git di Explorer VS Code: teks berwarna di kanan, bukan pil.
@@ -14,14 +14,29 @@ function folderHasChanges(folderPath, changes) {
 
 function TreeNode({ node, depth, selectedFile, activeFile, flashFiles, changes, onSelectFile }) {
   const [expanded, setExpanded] = useState(false);
+  const rowRef = useRef(null);
   const pad = { paddingLeft: 8 + depth * 12 };
+  const isFolder = node.type === "folder";
+  // Folder yang memuat file terpilih dibuka sendiri, supaya file yang dibuka dosen terlihat di tree.
+  const holdsSelection = isFolder && Boolean(selectedFile) && selectedFile.startsWith(`${node.path}/`);
 
-  if (node.type === "folder") {
+  useEffect(() => {
+    if (holdsSelection) setExpanded(true);
+  }, [holdsSelection, selectedFile]);
+
+  const isSelected = !isFolder && selectedFile === node.path;
+
+  useEffect(() => {
+    if (isSelected) rowRef.current?.scrollIntoView({ block: "nearest" });
+  }, [isSelected]);
+
+  if (isFolder) {
     const changed = folderHasChanges(node.path, changes);
     return (
       <>
         <button
           type="button"
+          ref={rowRef}
           className={["lc-tree__row", changed && "is-modified"].filter(Boolean).join(" ")}
           style={pad}
           aria-expanded={expanded}
@@ -52,11 +67,12 @@ function TreeNode({ node, depth, selectedFile, activeFile, flashFiles, changes, 
   const mark = MARKS[changes[node.path]];
   const isTeacherFile = activeFile === node.path;
   const flashing = flashFiles.has(node.path);
-  const classes = ["lc-tree__row", selectedFile === node.path && "is-selected", mark && `is-${mark[0]}`];
+  const classes = ["lc-tree__row", isSelected && "is-selected", mark && `is-${mark[0]}`];
 
   return (
     <button
       type="button"
+      ref={rowRef}
       className={classes.filter(Boolean).join(" ")}
       style={pad}
       title={node.path}

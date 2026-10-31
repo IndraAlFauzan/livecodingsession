@@ -44,7 +44,12 @@ tombol diberi warna, tidak ada lagi yang menonjol — itu sebabnya Batal dan Tut
 
 Periksa `bundle.css` sebelum menamai kelas baru di lapisan `app/`. `.lc-live` dan `.lc-stack`
 sudah dipakai design system dan pernah menabrak kelas aplikasi — akibatnya diam: teks putih di
-atas latar terang, atau tata letak yang melar. Lima kelas kini sengaja ditimpa (`.lc-app`,
+atas latar terang, atau tata letak yang melar.
+
+Selain nama, perhatikan juga **selektor turunan**. `.lc-codepanel pre` (0,1,1) mengalahkan
+`.lc-md__pre` (0,1,0), jadi blok kode di pratinjau README kehilangan padding kirinya sampai
+aturannya dilingkupi jadi `.lc-md .lc-md__pre`. Apa pun yang dirender di dalam `.lc-codepanel`
+mewarisi aturan turunannya. Lima kelas kini sengaja ditimpa (`.lc-app`,
 `.lc-input`, `.lc-dialog-backdrop`), masing-masing dengan komentar alasannya.
 
 ## Kerangka halaman
@@ -75,6 +80,25 @@ Nama yang tampil di sesi live datang dari akun di sisi server, bukan dari kirima
 
 Mahasiswa mengganti kata sandinya sendiri dari beranda; perangkat lain yang masih masuk ikut
 dikeluarkan. Kalau sandinya lupa, dosen bisa membuat sandi sementara dari halaman admin.
+
+## Pratinjau README
+
+Berkas `.md` yang dibuka dosen dirender sebagai bacaan, dengan pemilih Pratinjau/Kode di bar
+path. Pilihannya diingat per perangkat (`lc.mdSumber`).
+
+`utils/markdown.jsx` mengembalikan **elemen React, bukan string HTML** — tidak ada
+`dangerouslySetInnerHTML` di mana pun. Itu keputusan keamanannya: isi README datang dari folder
+dosen, termasuk repo yang dia clone entah dari mana, sementara di halaman mahasiswa ada tanda
+sesi di localStorage. `<script>` dan `<img onerror>` hanya tampil sebagai teks, dan tautan di
+luar `http(s):`/`mailto:` turun jadi teks biasa.
+
+Gambar tidak pernah dimuat: backend hanya mengirim path aset (`asset:metadata`), bukan isinya,
+dan memuat URL luar akan membocorkan ke server lain. Yang tampil adalah penanda bertuliskan
+teks alternatifnya.
+
+Subsetnya sengaja: judul, paragraf, tebal/miring, kode sebaris, blok kode berpagar, daftar,
+kutipan, garis pemisah, tautan, dan tabel. Memakai `marked` + `dompurify` akan menambah
+~33 KB gzip; perender ini menambah 1,4 KB.
 
 ## Catatan komponen
 
@@ -111,6 +135,7 @@ Vitest dengan jsdom. Yang diutamakan adalah perilaku yang mahal kalau rusak:
 | `components/student/PasswordDialog.test.jsx` | ulangan sandi dicocokkan di layar, pesan galat server, jumlah perangkat yang dikeluarkan |
 | `components/ui/Segmented.test.jsx` | pilihan aktif, indeks yang dilaporkan, `type=button` agar tidak mengirim form |
 | `components/ui/PasswordField.test.jsx` | tersembunyi secara bawaan, tombol intip bolak-balik, nama tombol menyebut kolomnya |
+| `utils/markdown.test.jsx` | HTML mentah jadi teks, tautan `javascript:`/`data:` ditolak, gambar tidak pernah dimuat, isi blok kode tidak diurai |
 
 `src/test/fakeWebSocket.js` adalah WebSocket tiruan yang dikemudikan tes — tidak ada koneksi sungguhan.
 

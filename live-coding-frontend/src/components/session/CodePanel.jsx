@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import Editor from "@monaco-editor/react";
+import Segmented from "../ui/Segmented.jsx";
+import { storage } from "../../lib/storage.js";
+import { isMarkdown, renderMarkdown } from "../../utils/markdown.jsx";
 import Icon from "../ui/Icon.jsx";
 
 function highlightLabel(highlights) {
@@ -62,7 +65,25 @@ function defineTheme(monaco) {
   });
 }
 
-function Shell({ path, highlights, children }) {
+// Fungsi, bukan konstanta: monoFont() membaca CSS variable, dan saat modul
+// dievaluasi stylesheet-nya bisa belum termuat -- fontnya akan diam-diam jatuh
+// ke bawaan Monaco.
+function editorOptions() {
+  return {
+    readOnly: true,
+    domReadOnly: true,
+    contextmenu: false,
+    minimap: { enabled: false },
+    fontFamily: monoFont(),
+    fontSize: 14,
+    lineHeight: 21,
+    wordWrap: "on",
+    scrollBeyondLastLine: false,
+    copyWithSyntaxHighlighting: false,
+  };
+}
+
+function Shell({ path, highlights, actions, children }) {
   const segments = path ? path.split("/") : [];
   return (
     <section className="lc-codepanel lc-session__panel">
@@ -90,6 +111,7 @@ function Shell({ path, highlights, children }) {
               {`Disorot dosen · ${highlightLabel(highlights)}`}
             </span>
           )}
+          {actions}
         </div>
       )}
       {children}
@@ -102,6 +124,7 @@ export default function CodePanel({ path, file, highlights, followHighlights }) 
   const monacoRef = useRef(null);
   const decorationsRef = useRef(null);
   const [editorReady, setEditorReady] = useState(false);
+  const [lihatSumber, setLihatSumber] = useState(() => storage.getMarkdownSource());
 
   function handleMount(editor, monaco) {
     editorRef.current = editor;
@@ -162,6 +185,48 @@ export default function CodePanel({ path, file, highlights, followHighlights }) 
 
   const language = file?.language || "plaintext";
 
+  // README dirender sebagai bacaan, bukan kode. Pratinjau jadi tampilan awal
+  // karena itu yang dicari saat dosen membuka README; sumbernya tetap sejauh
+  // satu klik, dan pilihannya diingat per perangkat.
+  if (isMarkdown(file)) {
+    const pilih = (
+      <Segmented
+        items={[{ label: "Pratinjau" }, { label: "Kode" }]}
+        value={lihatSumber ? 1 : 0}
+        onChange={(index) => {
+          const sumber = index === 1;
+          setLihatSumber(sumber);
+          storage.setMarkdownSource(sumber);
+        }}
+        label="Tampilan README"
+      />
+    );
+
+    if (!lihatSumber) {
+      return (
+        <Shell path={path} highlights={highlights} actions={pilih}>
+          <div className="lc-md">{renderMarkdown(content)}</div>
+        </Shell>
+      );
+    }
+
+    return (
+      <Shell path={path} highlights={highlights} actions={pilih}>
+        <div className="lc-codepanel__editor">
+          <Editor
+            height="100%"
+            language="markdown"
+            value={content || ""}
+            theme="lcc-dark"
+            beforeMount={defineTheme}
+            onMount={handleMount}
+            options={editorOptions()}
+          />
+        </div>
+      </Shell>
+    );
+  }
+
   return (
     <Shell path={path} highlights={highlights}>
       {file ? (
@@ -173,18 +238,7 @@ export default function CodePanel({ path, file, highlights, followHighlights }) 
             theme="lcc-dark"
             beforeMount={defineTheme}
             onMount={handleMount}
-            options={{
-              readOnly: true,
-              domReadOnly: true,
-              contextmenu: false,
-              minimap: { enabled: false },
-              fontFamily: monoFont(),
-              fontSize: 14,
-              lineHeight: 21,
-              wordWrap: "on",
-              scrollBeyondLastLine: false,
-              copyWithSyntaxHighlighting: false,
-            }}
+            options={editorOptions()}
           />
         </div>
       ) : (

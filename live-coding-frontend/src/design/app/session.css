@@ -672,3 +672,188 @@
   border-radius: var(--radius-lg);
   border: 1px solid var(--code-line);
 }
+
+/* ---------- pratinjau README ---------- */
+
+/* Dirender sebagai bacaan, bukan kode: ukuran teks dan jarak barisnya mengikuti
+   prosa, dan lebarnya dibatasi supaya barisnya tidak terlalu panjang dibaca. */
+.lc-md {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-6) var(--space-6) var(--space-8);
+  color: var(--on-code);
+  font-size: 14.5px;
+  line-height: 1.7;
+}
+
+.lc-md > * {
+  max-width: 72ch;
+}
+
+.lc-md__h {
+  margin: var(--space-6) 0 var(--space-3);
+  line-height: 1.3;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.lc-md > .lc-md__h:first-child {
+  margin-top: 0;
+}
+
+.lc-md__h1 {
+  font-size: 26px;
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--code-line);
+}
+
+.lc-md__h2 {
+  font-size: 20px;
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--code-line);
+}
+
+.lc-md__h3 { font-size: 17px; }
+.lc-md__h4,
+.lc-md__h5,
+.lc-md__h6 { font-size: 15px; }
+
+.lc-md__p {
+  margin: 0 0 var(--space-4);
+}
+
+.lc-md__list {
+  margin: 0 0 var(--space-4);
+  padding-left: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.lc-md__list li::marker {
+  color: var(--on-code-muted);
+}
+
+.lc-md code {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: var(--code-panel);
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  color: var(--syn-string);
+  /* Ligature dimatikan: catatan proyek mengajarkan sintaks, dan "=>" yang
+     tampil sebagai "⇒" membuat mahasiswa salah menyalin. Editor Monaco juga
+     tidak memakai ligature, jadi pratinjau dan sumber jadi sama. */
+  font-variant-ligatures: none;
+}
+
+/* Padding kanan pada kode sebaris terbaca seperti spasi saat diikuti tanda
+   baca. Ditarik kembali sedikit supaya "`Obx`." tidak jadi "Obx ." */
+.lc-md p > code,
+.lc-md li > code,
+.lc-md td > code,
+.lc-md th > code {
+  margin: 0 -1px;
+}
+
+/* Dilingkupi .lc-md supaya spesifisitasnya (0,2,0) mengalahkan aturan
+   `.lc-codepanel pre` di bundle.css (0,1,1) -- aturan itu memaksa
+   `padding: var(--space-3) 0`, jadi kode menempel ke tepi kiri, dan `flex: 1`
+   yang membuatnya melar. Pratinjau ini memang hidup di dalam .lc-codepanel. */
+.lc-md .lc-md__pre {
+  flex: none;
+  margin: 0 0 var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--code-line);
+  background: var(--code-panel);
+  overflow-x: auto;
+}
+
+.lc-md .lc-md__pre code {
+  padding: 0;
+  background: none;
+  color: var(--on-code);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.lc-md__quote {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-2) var(--space-4);
+  border-left: 3px solid var(--code-ruler);
+  color: var(--on-code-muted);
+}
+
+.lc-md__hr {
+  height: 1px;
+  margin: var(--space-6) 0;
+  border: 0;
+  background: var(--code-line);
+}
+
+.lc-md a {
+  color: var(--code-ruler);
+}
+
+/* Gambar tidak pernah dimuat; penandanya harus jelas sebagai penanda, bukan
+   gambar yang gagal termuat. */
+.lc-md__img {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  border: 1px dashed var(--code-line);
+  color: var(--on-code-muted);
+  font-size: 12px;
+}
+
+.lc-md__img::before {
+  content: "gambar";
+  color: var(--code-ruler);
+  font-size: 11px;
+}
+
+.lc-md__tablewrap {
+  margin: 0 0 var(--space-4);
+  overflow-x: auto;
+}
+
+.lc-md__table {
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+
+.lc-md__table th,
+.lc-md__table td {
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--code-line);
+  text-align: left;
+}
+
+.lc-md__table th {
+  background: var(--code-panel);
+  font-weight: 600;
+}
+
+/* Pemilih Kode/Pratinjau duduk di bar path; kecilkan supaya tidak menyaingi. */
+.lc-codepanel__bar .lc-segmented {
+  margin-left: auto;
+  padding: 2px;
+  background: var(--code-panel);
+  box-shadow: inset 0 0 0 1px var(--code-line);
+}
+
+.lc-codepanel__bar .lc-segmented__item {
+  height: 22px;
+  padding: 0 var(--space-3);
+  font-size: 11px;
+  color: var(--on-code-muted);
+}
+
+.lc-codepanel__bar .lc-segmented__item[aria-selected="true"] {
+  background: var(--code-ruler);
+  color: var(--code-bg);
+}

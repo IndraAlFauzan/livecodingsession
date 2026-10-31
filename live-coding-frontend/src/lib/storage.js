@@ -27,6 +27,10 @@ export const storage = {
   getFocusMode: () => read("lc.fokus", false) === true,
   setFocusMode: (on) => write("lc.fokus", Boolean(on)),
 
+  // Sebagian mahasiswa ingin melihat sumber README-nya; pilihan itu menempel.
+  getMarkdownSource: () => read("lc.mdSumber", false) === true,
+  setMarkdownSource: (on) => write("lc.mdSumber", Boolean(on)),
+
   getAdminToken: () => read("lc.adminToken", null),
   setAdminToken: (token) => write("lc.adminToken", token),
 

@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useStudentAuth } from "../../hooks/useStudentAuth.jsx";
-import { Button, Modal, TextField } from "../ui/index.js";
+import { Button, Modal, PasswordField } from "../ui/index.js";
 
 export default function PasswordDialog({ onClose }) {
   const { changePassword } = useStudentAuth();
@@ -66,26 +66,23 @@ export default function PasswordDialog({ onClose }) {
         Ganti kata sandi
       </h2>
       <form className="lc-sandiform" onSubmit={handleSubmit} noValidate>
-        <TextField
+        <PasswordField
           label="Kata sandi sekarang"
-          type="password"
           value={lama}
           onChange={(event) => setLama(event.target.value)}
           autoComplete="current-password"
           maxLength={200}
         />
-        <TextField
+        <PasswordField
           label="Kata sandi baru"
-          type="password"
           value={baru}
           onChange={(event) => setBaru(event.target.value)}
           autoComplete="new-password"
           maxLength={200}
           hint="Minimal 8 karakter."
         />
-        <TextField
+        <PasswordField
           label="Ulangi kata sandi baru"
-          type="password"
           value={ulang}
           onChange={(event) => setUlang(event.target.value)}
           autoComplete="new-password"

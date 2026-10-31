@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useStudentAuth } from "../../hooks/useStudentAuth.jsx";
 import Button from "../ui/Button.jsx";
-import Tabs from "../ui/Tabs.jsx";
+import PasswordField from "../ui/PasswordField.jsx";
+import Segmented from "../ui/Segmented.jsx";
 import TextField from "../ui/TextField.jsx";
 
 const MASUK = 0;
@@ -61,43 +62,54 @@ export default function AuthCard({ heading = "h2", message }) {
         </p>
       </div>
 
-      <Tabs items={[{ label: "Masuk" }, { label: "Daftar" }]} value={tab} onChange={gantiTab} />
-
-      <TextField
-        label="NIM"
-        mono
-        value={nim}
-        onChange={(event) => setNim(event.target.value.toUpperCase())}
-        placeholder="1301223045"
-        maxLength={20}
-        autoComplete="username"
-        spellCheck={false}
+      <Segmented
+        items={[{ label: "Masuk" }, { label: "Daftar" }]}
+        value={tab}
+        onChange={gantiTab}
+        label="Masuk atau daftar"
       />
 
-      {mendaftar && (
+      {/* Kolom isian dirapatkan jadi satu kelompok; jarak lebar disimpan untuk
+          memisahkan judul, pemilih mode, isian, dan tombol. */}
+      <div className="lc-fields">
         <TextField
-          label="Nama lengkap"
-          value={nama}
-          onChange={(event) => setNama(event.target.value)}
-          placeholder="Nama sesuai data kampus"
-          maxLength={100}
-          autoComplete="name"
+          label="NIM"
+          mono
+          value={nim}
+          onChange={(event) => setNim(event.target.value.toUpperCase())}
+          placeholder="1301223045"
+          maxLength={20}
+          autoComplete="username"
+          spellCheck={false}
+          autoFocus
         />
-      )}
 
-      <TextField
-        label="Kata sandi"
-        type="password"
-        value={sandi}
-        onChange={(event) => setSandi(event.target.value)}
-        placeholder="••••••••"
-        maxLength={200}
-        autoComplete={mendaftar ? "new-password" : "current-password"}
-        error={error}
-        hint={mendaftar ? "Minimal 8 karakter." : undefined}
-      />
+        {mendaftar && (
+          <TextField
+            label="Nama lengkap"
+            value={nama}
+            onChange={(event) => setNama(event.target.value)}
+            placeholder="Nama sesuai data kampus"
+            maxLength={100}
+            autoComplete="name"
+          />
+        )}
 
-      <Button size="lg" block iconRight="chevron-right" type="submit" disabled={mengirim}>
+        <PasswordField
+          // Dipasang ulang saat pindah tab, supaya status "sandi terlihat"
+          // tidak terbawa ke kolom yang baru saja dikosongkan.
+          key={mendaftar ? "daftar" : "masuk"}
+          label="Kata sandi"
+          value={sandi}
+          onChange={(event) => setSandi(event.target.value)}
+          maxLength={200}
+          autoComplete={mendaftar ? "new-password" : "current-password"}
+          error={error}
+          hint={mendaftar ? "Minimal 8 karakter." : undefined}
+        />
+      </div>
+
+      <Button size="lg" block type="submit" disabled={mengirim}>
         {mengirim ? "Memproses..." : mendaftar ? "Daftar" : "Masuk"}
       </Button>
     </form>

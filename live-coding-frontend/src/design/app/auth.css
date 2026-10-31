@@ -353,3 +353,11 @@ a.lc-brand:hover .lc-brand__text strong {
   gap: var(--space-3);
   text-align: left;
 }
+
+/* Kolom isian dalam satu kelompok rapat. Induknya (.lc-join) memberi jarak
+   lebar antar bagian; di dalam kelompok jaraknya lebih rapat supaya terbaca
+   sebagai satu blok, bukan empat elemen yang mengambang. */
+.lc-fields {
+  display: grid;
+  gap: var(--space-4);
+}

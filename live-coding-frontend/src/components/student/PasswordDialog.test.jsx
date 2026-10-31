@@ -16,9 +16,9 @@ function pasang() {
 }
 
 const isi = async (lama, baru, ulang) => {
-  if (lama) await userEvent.type(screen.getByLabelText(/kata sandi sekarang/i), lama);
+  if (lama) await userEvent.type(screen.getByLabelText(/^kata sandi sekarang$/i), lama);
   if (baru) await userEvent.type(screen.getByLabelText(/^kata sandi baru$/i), baru);
-  if (ulang) await userEvent.type(screen.getByLabelText(/ulangi/i), ulang);
+  if (ulang) await userEvent.type(screen.getByLabelText(/^ulangi kata sandi baru$/i), ulang);
   await userEvent.click(screen.getByRole("button", { name: /ganti kata sandi/i }));
 };
 

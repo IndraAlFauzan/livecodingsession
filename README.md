@@ -301,7 +301,7 @@ buka Pull Request ke main    CI jalan di PR
 merge ke main                <- ini sekaligus keputusan deploy
       |
       v
-Coolify build & deploy ke live.devrisetiaf.cloud
+Coolify build & deploy ke livecoding.devrisetiaf.cloud
 ```
 
 Karena merge berarti deploy, PR yang sudah hijau bisa dibiarkan menunggu — tidak perlu di-merge di tengah jam kuliah.
@@ -326,20 +326,20 @@ Compose tidak mempublish port ke host; routing domain dan HTTPS diurus Coolify:
 
 | Domain | Service | Port internal |
 |---|---|---|
-| `https://live.devrisetiaf.cloud` | `frontend` | 80 |
-| `https://api-live.devrisetiaf.cloud` | `backend` | 3000 |
+| `https://livecoding.devrisetiaf.cloud` | `frontend` | 80 |
+| `https://belivecoding.devrisetiaf.cloud` | `backend` | 3000 |
 
 Environment yang wajib diisi (lihat komentar di `.env.production.example`):
 
 | Variabel | Jenis | Contoh |
 |---|---|---|
 | `TEACHER_TOKEN` | runtime, rahasia | hasil `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
-| `PUBLIC_BASE_URL` | runtime | `https://live.devrisetiaf.cloud` |
+| `PUBLIC_BASE_URL` | runtime | `https://livecoding.devrisetiaf.cloud` |
 | `MAX_FILE_SIZE_BYTES` | runtime, opsional | `524288` |
 | `WS_HEARTBEAT_MS` | runtime, opsional | `30000` |
 | `TEACHER_GRACE_MS` | runtime, opsional | `120000` |
-| `VITE_WS_URL` | build-time | `wss://api-live.devrisetiaf.cloud` |
-| `VITE_API_URL` | build-time | `https://api-live.devrisetiaf.cloud` |
+| `VITE_WS_URL` | build-time | `wss://belivecoding.devrisetiaf.cloud` |
+| `VITE_API_URL` | build-time | `https://belivecoding.devrisetiaf.cloud` |
 
 Variabel `VITE_*` ditanam saat build; mengubahnya membutuhkan rebuild frontend. Kalau `VITE_WS_URL` kosong, build image frontend sengaja **gagal** — tanpa penjaga itu `src/config.js` diam-diam jatuh ke `ws://localhost:3000`, menghasilkan container sehat yang tidak pernah bisa dipakai mahasiswa. Database tersimpan di `/app/data/livecoding.db` dalam volume `livecoding-data` dan tetap ada saat container di-restart atau di-deploy ulang.
 
@@ -350,7 +350,7 @@ cp .env.production.example .env.production   # isi nilainya, jangan di-commit
 docker compose --env-file .env.production up -d --build
 ```
 
-Setelah deploy, arahkan VS Code dosen ke `wss://api-live.devrisetiaf.cloud` dengan token yang sama (lihat [langkah 7](#7-arahkan-vs-code-ke-server)).
+Setelah deploy, arahkan VS Code dosen ke `wss://belivecoding.devrisetiaf.cloud` dengan token yang sama (lihat [langkah 7](#7-arahkan-vs-code-ke-server)).
 
 ## Deploy ke VPS (manual, tanpa Docker)
 

@@ -1,7 +1,7 @@
 import { useId } from "react";
 import Icon from "./Icon.jsx";
 
-export default function TextField({ label, hint, error, icon, mono, search, kbd, className, id, ...input }) {
+export default function TextField({ label, hint, error, icon, mono, search, kbd, trailing, className, id, ...input }) {
   const generatedId = useId();
   const fieldId = id || generatedId;
   const describedBy = hint || error ? `${fieldId}-desc` : undefined;
@@ -14,6 +14,7 @@ export default function TextField({ label, hint, error, icon, mono, search, kbd,
       {(icon || search) && <Icon name={icon || "search"} />}
       <input {...input} id={fieldId} aria-describedby={describedBy} aria-invalid={error ? "true" : undefined} />
       {kbd && <span className="lc-kbd">{kbd}</span>}
+      {trailing}
     </div>
   );
 

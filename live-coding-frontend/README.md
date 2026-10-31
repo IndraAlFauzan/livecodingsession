@@ -28,6 +28,16 @@ Nama yang tampil di sesi live datang dari akun di sisi server, bukan dari kirima
 Mahasiswa mengganti kata sandinya sendiri dari beranda; perangkat lain yang masih masuk ikut
 dikeluarkan. Kalau sandinya lupa, dosen bisa membuat sandi sementara dari halaman admin.
 
+## Catatan komponen
+
+`Tabs` memeluk isinya dan dipakai untuk menyaring daftar (sering dengan jumlah di
+sebelah labelnya). Untuk memilih mode yang setara — misalnya Masuk/Daftar — pakai
+`Segmented`, yang membagi lebar rata. Memaksa `Tabs` selebar induknya membuat
+labelnya menumpuk di kiri, karena `.lc-tabs` itu `inline-flex`.
+
+`PasswordField` adalah `TextField` dengan tombol intip di dalam kotaknya. Pakai itu
+untuk semua isian kata sandi, bukan `TextField type="password"` langsung.
+
 ## Perlindungan kode
 
 Viewer menyembunyikan kode saat shortcut screenshot terdeteksi, dan memblokir copy, cut, klik kanan, seret, seleksi teks, serta print. Browser tidak bisa mencegah screenshot dari sistem operasi atau kamera, dan sejak watermark dicabut bocoran tidak bisa dilacak ke mahasiswa asalnya.
@@ -51,6 +61,8 @@ Vitest dengan jsdom. Yang diutamakan adalah perilaku yang mahal kalau rusak:
 | `components/student/JoinCard.test.jsx` | validasi kode, huruf besar otomatis, kode mata kuliah lain ditolak |
 | `components/admin/StudentRoster.test.jsx` | konfirmasi sebelum reset, baris yang benar yang direset, sandi sementara hanya tampil sekali |
 | `components/student/PasswordDialog.test.jsx` | ulangan sandi dicocokkan di layar, pesan galat server, jumlah perangkat yang dikeluarkan |
+| `components/ui/Segmented.test.jsx` | pilihan aktif, indeks yang dilaporkan, `type=button` agar tidak mengirim form |
+| `components/ui/PasswordField.test.jsx` | tersembunyi secara bawaan, tombol intip bolak-balik, nama tombol menyebut kolomnya |
 
 `src/test/fakeWebSocket.js` adalah WebSocket tiruan yang dikemudikan tes — tidak ada koneksi sungguhan.
 

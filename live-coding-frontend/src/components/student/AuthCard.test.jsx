@@ -38,7 +38,7 @@ describe("AuthCard", () => {
   it("masuk mengirim NIM dan kata sandi", async () => {
     pasang();
     await userEvent.type(screen.getByLabelText(/nim/i), "1301223045");
-    await userEvent.type(screen.getByLabelText(/kata sandi/i), "rahasia123");
+    await userEvent.type(screen.getByLabelText(/^kata sandi$/i), "rahasia123");
     await kirim();
 
     expect(login).toHaveBeenCalledWith("1301223045", "rahasia123");
@@ -56,7 +56,7 @@ describe("AuthCard", () => {
     await keDaftar();
     await userEvent.type(screen.getByLabelText(/nim/i), "1301223045");
     await userEvent.type(screen.getByLabelText(/nama lengkap/i), "Rina Aprilia");
-    await userEvent.type(screen.getByLabelText(/kata sandi/i), "rahasia123");
+    await userEvent.type(screen.getByLabelText(/^kata sandi$/i), "rahasia123");
     await kirim();
 
     expect(register).toHaveBeenCalledWith("1301223045", "Rina Aprilia", "rahasia123");
@@ -69,7 +69,7 @@ describe("AuthCard", () => {
     await keDaftar();
     await userEvent.type(screen.getByLabelText(/nim/i), "1301223045");
     await userEvent.type(screen.getByLabelText(/nama lengkap/i), "Rina Aprilia");
-    await userEvent.type(screen.getByLabelText(/kata sandi/i), "pendek");
+    await userEvent.type(screen.getByLabelText(/^kata sandi$/i), "pendek");
     await kirim();
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/minimal 8 karakter/i);
@@ -88,7 +88,7 @@ describe("AuthCard", () => {
     pasang();
     login.mockRejectedValue(new Error("NIM atau kata sandi salah."));
     await userEvent.type(screen.getByLabelText(/nim/i), "1301223045");
-    await userEvent.type(screen.getByLabelText(/kata sandi/i), "salahsekali");
+    await userEvent.type(screen.getByLabelText(/^kata sandi$/i), "salahsekali");
     await kirim();
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/nim atau kata sandi salah/i);
@@ -98,9 +98,9 @@ describe("AuthCard", () => {
   // artinya sandi baru, di tab masuk artinya sandi lama.
   it("mengosongkan kata sandi dan pesan galat saat pindah tab", async () => {
     pasang();
-    await userEvent.type(screen.getByLabelText(/kata sandi/i), "rahasia123");
+    await userEvent.type(screen.getByLabelText(/^kata sandi$/i), "rahasia123");
     await keDaftar();
 
-    expect(screen.getByLabelText(/kata sandi/i)).toHaveValue("");
+    expect(screen.getByLabelText(/^kata sandi$/i)).toHaveValue("");
   });
 });

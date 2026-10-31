@@ -86,7 +86,7 @@ export default function CoursePage() {
               Ikuti sesi live
             </Button>
           ) : (
-            <Button variant="secondary" onClick={() => open(meeting)}>
+            <Button variant="soft" onClick={() => open(meeting)}>
               Buka
             </Button>
           )
@@ -97,17 +97,7 @@ export default function CoursePage() {
 
   return (
     <>
-      <AppHeader
-        crumb="Mata kuliah"
-        title={courseName}
-        live={Boolean(live)}
-        user={student?.name}
-        actions={
-          <Button variant="secondary" icon="chevron-left" onClick={() => navigate("/mk")}>
-            Semua mata kuliah
-          </Button>
-        }
-      />
+      <AppHeader crumb="Mata kuliah" title={courseName} live={Boolean(live)} user={student?.name} />
 
       <div className="lc-page__body">
 

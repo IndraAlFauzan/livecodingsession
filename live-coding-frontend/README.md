@@ -26,6 +26,20 @@ kuliahnya.
 
 Badge Live di sidebar ikut dari muatan yang sama, jadi menampilkannya tidak menambah permintaan.
 
+## Kapan memakai varian tombol mana
+
+| Varian | Dipakai untuk |
+|---|---|
+| `violet` | Satu aksi paling penting di layar — selalu "ikuti sesi live" |
+| `primary` | Tombol kirim sebuah form |
+| `soft` | Aksi utama sebuah kartu atau baris (Buka, Buka lagi, Buka pertemuan) |
+| `secondary` | Aksi yang harus mengalah: Batal, Tutup, Coba lagi, dan pasangan dari tombol utama |
+| `ghost` | Aksi sekunder di kaki kartu |
+| `danger` | Menghapus |
+
+`soft` ada supaya aksi utama sebuah kartu tidak tampil seperti tombol batal. Kalau semua
+tombol diberi warna, tidak ada lagi yang menonjol — itu sebabnya Batal dan Tutup tetap putih.
+
 ## Catatan penamaan kelas CSS
 
 Periksa `bundle.css` sebelum menamai kelas baru di lapisan `app/`. `.lc-live` dan `.lc-stack`

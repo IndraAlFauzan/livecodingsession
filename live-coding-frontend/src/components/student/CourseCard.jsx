@@ -36,7 +36,7 @@ export default function CourseCard({ name, detail, live, meetingCount, onOpen, o
             Ikuti sesi live
           </Button>
         )}
-        <Button variant="secondary" block onClick={onOpen}>
+        <Button variant="soft" block onClick={onOpen}>
           Buka
         </Button>
         <Button variant="ghost" size="sm" block onClick={onLeave}>

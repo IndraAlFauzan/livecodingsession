@@ -166,7 +166,7 @@ export default function CourseDetail({ api, course, onError, onCourseChanged, on
             startedAt={featured.startedAt}
             action={
               <Button
-                variant="secondary"
+                variant="soft"
                 size="sm"
                 disabled={featured.status === "draft" || !featured.visible}
                 title={

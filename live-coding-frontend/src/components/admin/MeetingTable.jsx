@@ -108,7 +108,7 @@ export default function MeetingTable({ meetings, onRename, onToggleVisible, onOp
                       onClick={() => onDetail(meeting)}
                     />
                     <Button
-                      variant="secondary"
+                      variant="soft"
                       size="sm"
                       disabled={Boolean(openDisabledReason)}
                       title={openDisabledReason}

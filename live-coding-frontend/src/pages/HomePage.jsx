@@ -108,13 +108,18 @@ export default function HomePage() {
                 <Card key={item.meeting.id} className="lc-recent">
                   <div className="lc-recent__top">
                     <span className="lc-recent__course">{item.course.name}</span>
-                    <Badge tone="neutral" size="sm">
-                      {item.meeting.status === "live" ? "Live" : "Selesai"}
-                    </Badge>
+                    {/* Kata "Live" tidak boleh tampil dua gaya di layar yang sama. */}
+                    {item.meeting.status === "live" ? (
+                      <Badge status="live" size="sm" />
+                    ) : (
+                      <Badge tone="neutral" size="sm">
+                        Selesai
+                      </Badge>
+                    )}
                   </div>
                   <strong>{meetingName(item.meeting)}</strong>
                   <p className="lc-muted">Dibuka {formatDateTime(item.lastSeen)}</p>
-                  <Button variant="secondary" size="sm" block onClick={() => buka(item.course.slug, item.meeting.id)}>
+                  <Button variant="soft" size="sm" block onClick={() => buka(item.course.slug, item.meeting.id)}>
                     Buka lagi
                   </Button>
                 </Card>

@@ -18,6 +18,8 @@ export default function Sidebar({
   workspace,
   menu = [],
   courses,
+  coursesLabel = "Mata kuliah",
+  addLabel = "Mata kuliah baru",
   currentCourseId,
   onSelectCourse,
   onAddCourse,
@@ -54,8 +56,8 @@ export default function Sidebar({
       {courses && (
         <div className="lc-sidebar__section">
           <div className="lc-sidebar__label">
-            Mata kuliah
-            {onAddCourse && <IconButton icon="plus" label="Mata kuliah baru" variant="plain" size="sm" onClick={onAddCourse} />}
+            {coursesLabel}
+            {onAddCourse && <IconButton icon="plus" label={addLabel} variant="plain" size="sm" onClick={onAddCourse} />}
           </div>
           {children}
           {courses.length === 0 && !children && <p className="lc-muted lc-sidebar__note">Belum ada mata kuliah.</p>}

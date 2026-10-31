@@ -6,11 +6,45 @@ Web untuk mahasiswa (melihat kode dosen) dan halaman admin dosen. React + Vite +
 
 | URL | Untuk | Isi |
 |---|---|---|
-| `/` | mahasiswa | Masuk/daftar akun, lalu gabung mata kuliah dengan kode akses |
+| `/` | mahasiswa | Beranda: sesi yang sedang live, dan pertemuan terakhir dibuka |
+| `/mk` | mahasiswa | Mata kuliah yang diikuti, dan tombol gabung |
 | `/mk/:slug` | mahasiswa | Daftar pertemuan (Live/Selesai, label lanjutan) |
+| `/mk/:slug/p/:id` | mahasiswa | Sesi di dalam kerangka |
+| `/fokus/mk/:slug/p/:id` | mahasiswa | Sesi layar penuh, tanpa sidebar |
+| `/akun` | mahasiswa | Identitas, ganti kata sandi, keluar |
 | `/mk/:slug/p/:id` | mahasiswa | Viewer kode: real-time saat live, arsip read-only setelah selesai |
 | `/pratinjau/mk/:slug/p/:id` | dosen | Pratinjau halaman mahasiswa memakai teacher token, tanpa akun mahasiswa |
 | `/admin` | dosen | Kelola mata kuliah, kode akses, dan pertemuan (login dengan teacher token) |
+
+## Satu permintaan untuk seluruh aplikasi
+
+`StudentAuthProvider` memanggil `GET /api/student/home` tiap 30 detik dan membagikan hasilnya
+ke semua halaman: identitas, mata kuliah (beserta `meetingCount`, pertemuan terbaru, dan sesi
+yang sedang live), serta riwayat "terakhir dibuka". Halaman daftar **tidak lagi** memanggil satu
+permintaan per mata kuliah — diukur di browser: 1 permintaan per 35 detik, apa pun jumlah mata
+kuliahnya.
+
+Badge Live di sidebar ikut dari muatan yang sama, jadi menampilkannya tidak menambah permintaan.
+
+## Catatan penamaan kelas CSS
+
+Periksa `bundle.css` sebelum menamai kelas baru di lapisan `app/`. `.lc-live` dan `.lc-stack`
+sudah dipakai design system dan pernah menabrak kelas aplikasi — akibatnya diam: teks putih di
+atas latar terang, atau tata letak yang melar. Lima kelas kini sengaja ditimpa (`.lc-app`,
+`.lc-input`, `.lc-dialog-backdrop`), masing-masing dengan komentar alasannya.
+
+## Kerangka halaman
+
+Halaman mahasiswa dibungkus `StudentShell` (`components/layout/StudentShell.jsx`), yang
+memakai `AppLayout` + `Sidebar` yang sama dengan halaman dosen — keduanya sudah ada di
+`bundle.css`, termasuk perilaku jadi drawer di bawah 1024px. Sidebar berisi menu Beranda /
+Mata kuliah / Akun plus daftar mata kuliah yang diikuti.
+
+Halaman sesi punya dua mode dengan isi yang sama persis: di dalam kerangka (`/mk/:slug/p/:id`)
+dan layar penuh (`/fokus/mk/:slug/p/:id`). Tombol di title bar berpindah dua arah, Esc keluar
+dari layar penuh, dan pilihannya diingat per perangkat di `lc.fokus` — jadi yang terbiasa layar
+penuh tidak perlu menekannya tiap pertemuan. `meetingPath()` di `utils/meetingStatus.js` adalah
+satu-satunya tempat yang memutuskan ke mana tombol "buka pertemuan" mengarah.
 
 ## Akun mahasiswa
 

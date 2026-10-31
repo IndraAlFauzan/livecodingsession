@@ -270,10 +270,22 @@ function isEnrolled(courseId, studentId) {
 }
 
 // Inilah riwayat yang melekat pada akun, menggantikan daftar di localStorage.
+//
+// Jumlah pertemuan dan pertemuan terbaru ikut dihitung di sini supaya halaman
+// daftar cukup satu permintaan, bukan satu per mata kuliah. Sub-kueri hanya
+// melihat pertemuan yang memang tampil bagi mahasiswa.
 function listEnrolledCourses(studentId) {
   return db
     .prepare(
-      `SELECT c.slug, c.name, e.joined_at AS joinedAt
+      `SELECT c.slug, c.name, e.joined_at AS joinedAt,
+              (SELECT count(*) FROM meetings m
+                WHERE m.course_id = c.id AND m.visible = 1 AND m.status != 'draft') AS meetingCount,
+              (SELECT m.number FROM meetings m
+                WHERE m.course_id = c.id AND m.visible = 1 AND m.status != 'draft'
+                ORDER BY m.number DESC LIMIT 1) AS latestNumber,
+              (SELECT m.title FROM meetings m
+                WHERE m.course_id = c.id AND m.visible = 1 AND m.status != 'draft'
+                ORDER BY m.number DESC LIMIT 1) AS latestTitle
        FROM course_enrollments e JOIN courses c ON c.id = e.course_id
        WHERE e.student_id = ? ORDER BY e.joined_at DESC`,
     )
@@ -378,16 +390,54 @@ function finishMeeting(id) {
   cleanupOrphanBlobs();
 }
 
-// Nama diketik sendiri oleh mahasiswa tanpa akun, jadi ini catatan kehadiran
-// yang dilaporkan sendiri -- bukan bukti identitas.
-function recordViewer(meetingId, name) {
+// Dicatat per akun, bukan per nama: dua mahasiswa senama adalah dua baris.
+// Namanya ikut disimpan supaya halaman dosen tidak perlu join hanya untuk
+// menampilkan daftar, dan supaya baris lama tetap terbaca.
+function recordViewer(meetingId, studentId, name) {
   const at = now();
   db.prepare(
-    `INSERT INTO meeting_viewers (meeting_id, name, first_seen, last_seen, visits)
-     VALUES (?, ?, ?, ?, 1)
-     ON CONFLICT (meeting_id, name) DO UPDATE
-     SET last_seen = excluded.last_seen, visits = visits + 1`,
-  ).run(meetingId, name, at, at);
+    `INSERT INTO meeting_viewers (meeting_id, student_id, name, first_seen, last_seen, visits)
+     VALUES (?, ?, ?, ?, ?, 1)
+     ON CONFLICT (meeting_id, student_id) DO UPDATE
+     SET last_seen = excluded.last_seen, name = excluded.name, visits = visits + 1`,
+  ).run(meetingId, studentId, name, at, at);
+}
+
+// ---------- beranda mahasiswa ----------
+
+// Pertemuan yang sedang live di mata kuliah yang diikuti akun ini. Status
+// 'live' saja belum cukup kalau dosen putus tanpa menutup sesi; pemanggil
+// menyaring lagi lewat live.hasTeacher().
+function listLiveMeetingsFor(studentId) {
+  return db
+    .prepare(
+      `SELECT m.id, m.number, m.title, m.started_at AS startedAt,
+              c.slug AS courseSlug, c.name AS courseName
+       FROM course_enrollments e
+       JOIN meetings m ON m.course_id = e.course_id
+       JOIN courses c ON c.id = e.course_id
+       WHERE e.student_id = ? AND m.status = 'live' AND m.visible = 1
+       ORDER BY m.started_at DESC`,
+    )
+    .all(studentId);
+}
+
+// "Terakhir kamu buka" -- hanya pertemuan dari mata kuliah yang masih diikuti,
+// supaya yang sudah keluar kelas tidak melihat sisa riwayatnya.
+function listRecentMeetingsFor(studentId, limit = 4) {
+  return db
+    .prepare(
+      `SELECT m.id, m.number, m.title, m.status, m.started_at AS startedAt,
+              c.slug AS courseSlug, c.name AS courseName, v.last_seen AS lastSeen
+       FROM meeting_viewers v
+       JOIN meetings m ON m.id = v.meeting_id
+       JOIN courses c ON c.id = m.course_id
+       JOIN course_enrollments e ON e.course_id = m.course_id AND e.student_id = v.student_id
+       WHERE v.student_id = ? AND m.visible = 1 AND m.status != 'draft'
+       ORDER BY v.last_seen DESC
+       LIMIT ?`,
+    )
+    .all(studentId, limit);
 }
 
 function listViewers(meetingId) {
@@ -517,6 +567,8 @@ module.exports = {
   clearEnrollments,
   listCourseStudents,
   recordViewer,
+  listLiveMeetingsFor,
+  listRecentMeetingsFor,
   listViewers,
   setMeetingTree,
   setActiveFile,

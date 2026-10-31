@@ -319,6 +319,47 @@ student.post(
   }),
 );
 
+// Satu panggilan untuk seluruh beranda. Sebelumnya halaman daftar memanggil
+// satu permintaan per mata kuliah tiap 30 detik hanya untuk tahu mana yang live.
+student.get('/home', requireStudent, (req, res) => {
+  // Status 'live' di database belum tentu benar kalau dosen putus tanpa menutup
+  // sesi; yang menentukan adalah ada-tidaknya koneksi dosen saat ini.
+  // Sesi live ditempelkan ke mata kuliahnya, bukan jadi daftar terpisah: satu
+  // sumber kebenaran, dan beranda tinggal menyaring yang punya `live`.
+  const liveTiapKelas = new Map();
+  for (const m of db.listLiveMeetingsFor(req.student.id)) {
+    if (!live.hasTeacher(m.id) && !live.isReconnecting(m.id)) continue;
+    liveTiapKelas.set(m.courseSlug, {
+      id: m.id,
+      number: m.number,
+      title: m.title,
+      startedAt: m.startedAt,
+      reconnecting: !live.hasTeacher(m.id),
+    });
+  }
+
+  const courses = db.listEnrolledCourses(req.student.id).map((c) => ({
+    slug: c.slug,
+    name: c.name,
+    joinedAt: c.joinedAt,
+    meetingCount: c.meetingCount,
+    latest: c.latestNumber == null ? null : { number: c.latestNumber, title: c.latestTitle },
+    live: liveTiapKelas.get(c.slug) || null,
+  }));
+
+  const recent = db.listRecentMeetingsFor(req.student.id).map((m) => ({
+    course: { slug: m.courseSlug, name: m.courseName },
+    meeting: { id: m.id, number: m.number, title: m.title, status: m.status, startedAt: m.startedAt },
+    lastSeen: m.lastSeen,
+  }));
+
+  res.json({
+    student: { nim: req.student.nim, name: req.student.name },
+    courses,
+    recent,
+  });
+});
+
 student.get('/me', requireStudent, (req, res) => {
   res.json({ student: { nim: req.student.nim, name: req.student.name }, courses: db.listEnrolledCourses(req.student.id) });
 });

@@ -4,7 +4,7 @@ import Badge from "../ui/Badge.jsx";
 import { useElapsed } from "../../utils/elapsed.js";
 
 // Title bar jendela IDE: menempel di atas Explorer dan editor, bukan kartu terpisah.
-export default function SessionHeader({ crumb, title, isLive, hasMeeting, startedAt, meta, student }) {
+export default function SessionHeader({ crumb, title, isLive, hasMeeting, startedAt, meta, student, actions }) {
   const time = useElapsed(startedAt, isLive);
 
   return (
@@ -25,6 +25,7 @@ export default function SessionHeader({ crumb, title, isLive, hasMeeting, starte
       <span className="lc-titlebar__spacer" />
 
       {meta}
+      {actions}
       <span className="lc-titlebar__user">
         <Avatar name={student} size="sm" />
         {student}

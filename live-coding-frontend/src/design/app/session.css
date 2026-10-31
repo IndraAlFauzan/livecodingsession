@@ -658,3 +658,17 @@
   border-radius: 0;
   overflow: auto;
 }
+
+/* Sesi di dalam kerangka: mengisi tinggi layar dikurangi padding .lc-app,
+   lalu diberi sudut membulat supaya terbaca sebagai panel, bukan halaman.
+   Mode fokus memakai .lc-session-page dan tidak mendapat kelas ini.
+
+   flex:none penting. .lc-ide memakai flex:1, yang berarti flex-basis:0 -- dan
+   untuk item flex, flex-basis-lah yang menentukan ukuran utama, bukan height.
+   Tanpa ini panelnya menciut setinggi isinya. */
+.lc-ide--embedded {
+  flex: none;
+  height: calc(100vh - var(--space-4) * 2);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--code-line);
+}

@@ -13,6 +13,7 @@ vi.mock("../lib/api.js", async () => {
       login: vi.fn(),
       logout: vi.fn(),
       me: vi.fn(),
+      home: vi.fn(),
       joinCourse: vi.fn(),
       leaveCourse: vi.fn(),
     },
@@ -35,12 +36,12 @@ describe("tanpa tanda sesi tersimpan", () => {
     const { result } = pasang();
 
     expect(result.current.status).toBe("keluar");
-    expect(studentApi.me).not.toHaveBeenCalled();
+    expect(studentApi.home).not.toHaveBeenCalled();
   });
 
   it("masuk menyimpan tanda sesi dan akun", async () => {
     studentApi.login.mockResolvedValue({ token: "tanda-123", student: AKUN });
-    studentApi.me.mockResolvedValue({ student: AKUN, courses: KELAS });
+    studentApi.home.mockResolvedValue({ student: AKUN, courses: KELAS, recent: [] });
     const { result } = pasang();
 
     await act(() => result.current.login("1301223045", "rahasia123"));
@@ -53,7 +54,7 @@ describe("tanpa tanda sesi tersimpan", () => {
 
   it("daftar juga langsung membuat sesi", async () => {
     studentApi.register.mockResolvedValue({ token: "tanda-baru", student: AKUN });
-    studentApi.me.mockResolvedValue({ student: AKUN, courses: [] });
+    studentApi.home.mockResolvedValue({ student: AKUN, courses: [], recent: [] });
     const { result } = pasang();
 
     await act(() => result.current.register("1301223045", "Rina Aprilia", "rahasia123"));
@@ -69,14 +70,14 @@ describe("dengan tanda sesi tersimpan", () => {
   // Tanpa status 'memuat', layar masuk sempat berkedip muncul untuk mahasiswa
   // yang sebenarnya sudah masuk.
   it("mulai dari status memuat, bukan keluar", () => {
-    studentApi.me.mockReturnValue(new Promise(() => {}));
+    studentApi.home.mockReturnValue(new Promise(() => {}));
     const { result } = pasang();
 
     expect(result.current.status).toBe("memuat");
   });
 
   it("memulihkan akun dan riwayat dari server", async () => {
-    studentApi.me.mockResolvedValue({ student: AKUN, courses: KELAS });
+    studentApi.home.mockResolvedValue({ student: AKUN, courses: KELAS, recent: [] });
     const { result } = pasang();
 
     await waitFor(() => expect(result.current.status).toBe("masuk"));
@@ -85,7 +86,7 @@ describe("dengan tanda sesi tersimpan", () => {
   });
 
   it("401 berarti tanda sesi mati: dibuang dan status jadi keluar", async () => {
-    studentApi.me.mockRejectedValue(new ApiError("Silakan masuk dulu.", 401));
+    studentApi.home.mockRejectedValue(new ApiError("Silakan masuk dulu.", 401));
     const { result } = pasang();
 
     await waitFor(() => expect(result.current.status).toBe("keluar"));
@@ -95,7 +96,7 @@ describe("dengan tanda sesi tersimpan", () => {
   // Jaringan kampus sering putus sebentar. Kalau setiap kegagalan memaksa
   // keluar, mahasiswa harus mengetik sandi ulang tanpa alasan.
   it("gagal jaringan tidak memaksa keluar", async () => {
-    studentApi.me.mockRejectedValue(new ApiError("Tidak bisa terhubung ke server.", 0));
+    studentApi.home.mockRejectedValue(new ApiError("Tidak bisa terhubung ke server.", 0));
     const { result } = pasang();
 
     await waitFor(() => expect(result.current.status).toBe("masuk"));
@@ -103,7 +104,7 @@ describe("dengan tanda sesi tersimpan", () => {
   });
 
   it("keluar membuang tanda sesi walau server gagal dihubungi", async () => {
-    studentApi.me.mockResolvedValue({ student: AKUN, courses: KELAS });
+    studentApi.home.mockResolvedValue({ student: AKUN, courses: KELAS, recent: [] });
     studentApi.logout.mockRejectedValue(new ApiError("Tidak bisa terhubung ke server.", 0));
     const { result } = pasang();
     await waitFor(() => expect(result.current.status).toBe("masuk"));
@@ -115,9 +116,9 @@ describe("dengan tanda sesi tersimpan", () => {
   });
 
   it("gabung kelas memuat ulang riwayat dari server", async () => {
-    studentApi.me.mockResolvedValueOnce({ student: AKUN, courses: [] });
+    studentApi.home.mockResolvedValueOnce({ student: AKUN, courses: [], recent: [] });
     studentApi.joinCourse.mockResolvedValue({ course: KELAS[0] });
-    studentApi.me.mockResolvedValueOnce({ student: AKUN, courses: KELAS });
+    studentApi.home.mockResolvedValueOnce({ student: AKUN, courses: KELAS, recent: [] });
     const { result } = pasang();
     await waitFor(() => expect(result.current.status).toBe("masuk"));
 
@@ -128,8 +129,8 @@ describe("dengan tanda sesi tersimpan", () => {
   });
 
   it("keluar dari kelas memuat ulang riwayat dari server", async () => {
-    studentApi.me.mockResolvedValueOnce({ student: AKUN, courses: KELAS });
-    studentApi.me.mockResolvedValueOnce({ student: AKUN, courses: [] });
+    studentApi.home.mockResolvedValueOnce({ student: AKUN, courses: KELAS, recent: [] });
+    studentApi.home.mockResolvedValueOnce({ student: AKUN, courses: [], recent: [] });
     const { result } = pasang();
     await waitFor(() => expect(result.current.courses).toEqual(KELAS));
 

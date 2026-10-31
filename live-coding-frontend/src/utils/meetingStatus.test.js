@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { derivedStatus, isRunning } from "./meetingStatus.js";
+import { meetingPath, derivedStatus, isRunning } from "./meetingStatus.js";
 
 const pertemuan = (ubahan) => ({
   status: "draft",
@@ -40,5 +40,25 @@ describe("isRunning", () => {
     expect(isRunning(pertemuan({ status: "live", reconnecting: true }))).toBe(true);
     expect(isRunning(pertemuan({ status: "live" }))).toBe(false);
     expect(isRunning(pertemuan({ status: "draft", teacherConnected: true }))).toBe(false);
+  });
+});
+
+describe("meetingPath", () => {
+  it("mengarah ke sesi dalam kerangka saat mode fokus mati", () => {
+    expect(meetingPath("pemrograman-mobile", "p1", false)).toBe("/mk/pemrograman-mobile/p/p1");
+  });
+
+  it("mengarah ke layar penuh saat mode fokus hidup", () => {
+    expect(meetingPath("pemrograman-mobile", "p1", true)).toBe("/fokus/mk/pemrograman-mobile/p/p1");
+  });
+
+  // Kedua rute membawa slug yang sama, jadi berpindah mode tidak pernah
+  // kehilangan mata kuliah mana yang sedang dibuka.
+  it("kedua mode membawa slug dan id yang sama", () => {
+    const biasa = meetingPath("basis-data", "xyz", false);
+    const fokus = meetingPath("basis-data", "xyz", true);
+    expect(fokus).toContain("basis-data");
+    expect(fokus).toContain("xyz");
+    expect(fokus.endsWith(biasa)).toBe(true);
   });
 });

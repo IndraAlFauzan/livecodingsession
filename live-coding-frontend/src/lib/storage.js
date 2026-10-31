@@ -23,6 +23,10 @@ export const storage = {
   getStudentToken: () => read("lc.studentToken", null),
   setStudentToken: (token) => write("lc.studentToken", token),
 
+  // Mahasiswa yang suka layar penuh tidak perlu menekan tombolnya tiap pertemuan.
+  getFocusMode: () => read("lc.fokus", false) === true,
+  setFocusMode: (on) => write("lc.fokus", Boolean(on)),
+
   getAdminToken: () => read("lc.adminToken", null),
   setAdminToken: (token) => write("lc.adminToken", token),
 

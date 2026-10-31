@@ -31,3 +31,133 @@
 a.lc-btn {
   text-decoration: none;
 }
+
+/* Baris label-nilai di halaman Akun. Label rata kiri dengan lebar tetap supaya
+   nilainya sejajar, dan menumpuk di layar sempit. */
+.lc-rowinfo__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.lc-rowinfo {
+  display: flex;
+  gap: var(--space-4);
+  align-items: baseline;
+}
+
+.lc-rowinfo__label {
+  flex: none;
+  width: 180px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.lc-rowinfo__value {
+  font-weight: 600;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 560px) {
+  .lc-rowinfo {
+    flex-direction: column;
+    gap: 2px;
+  }
+  .lc-rowinfo__label {
+    width: auto;
+  }
+}
+
+/* ---------- beranda ---------- */
+
+/* Kartu sesi yang sedang berlangsung. Namanya .lc-now, bukan .lc-live --
+   .lc-live sudah dipakai bundle.css untuk kartu sesi di halaman dosen (latar
+   ungu, teks putih), dan memakainya di sini membuat judulnya putih di atas
+   latar terang. Periksa bundle.css dulu sebelum menamai kelas baru. */
+.lc-now {
+  border-color: var(--live);
+  background: linear-gradient(var(--live-soft), var(--surface) 60%);
+}
+
+.lc-now__top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.lc-now__clock {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--live-ink);
+}
+
+.lc-now__warn {
+  font-size: 12px;
+  color: var(--amber-ink);
+}
+
+.lc-now__course {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.lc-now__meeting {
+  margin: 2px 0 0;
+  color: var(--muted);
+}
+
+.lc-now__actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+/* Keadaan tenang: tidak ada yang live. Harus terbaca sebagai kabar, bukan galat. */
+.lc-quiet {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.lc-quiet__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+.lc-quiet p {
+  margin: 2px 0 0;
+}
+
+.lc-recent__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.lc-recent__course {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* Judul bagian di dalam halaman. Design system hanya menyediakan .lc-h1 untuk
+   judul halaman; ini setingkat di bawahnya. */
+.lc-h2 {
+  margin: var(--space-2) 0 0;
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}

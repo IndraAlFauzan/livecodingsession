@@ -40,7 +40,7 @@ export default function CourseCard({ name, detail, live, meetingCount, onOpen, o
           Buka
         </Button>
         <Button variant="ghost" size="sm" block onClick={onLeave}>
-          Keluar dari kelas
+          Keluar
         </Button>
       </div>
     </Card>

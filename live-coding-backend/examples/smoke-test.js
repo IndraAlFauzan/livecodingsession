@@ -299,6 +299,35 @@ async function main() {
   check((await student.next('file:content')).content.includes('print(1)'), 'isi file tetap bisa dibuka setelah selesai');
   student.close();
 
+  console.log('\nBeranda mahasiswa');
+  const beranda = (await api('GET', '/api/student/home', { student: rina })).data;
+  check(beranda.student.nim === nimRina, 'beranda membawa identitas akun');
+  check(beranda.courses.length === 1, 'beranda membawa daftar mata kuliah');
+  // Pertemuan 1 sudah selesai dan dosennya sudah keluar, jadi tidak ada yang live.
+  check(beranda.courses.every((c) => !c.live), 'tidak ada sesi live setelah dosen berhenti');
+  const mk = beranda.courses.find((c) => c.slug === mobile.slug);
+  check(mk.meetingCount === 1, `jumlah pertemuan ikut dihitung (${mk.meetingCount})`);
+  check(mk.latest?.number === 1, 'pertemuan terbaru ikut dibawa');
+  const terakhir = beranda.recent[0];
+  check(Boolean(terakhir), 'beranda membawa pertemuan yang terakhir dibuka');
+  check(terakhir.meeting.id === p1.id, 'yang terakhir dibuka adalah pertemuan yang tadi diikuti');
+  check(terakhir.course.slug === mobile.slug, 'riwayat membawa mata kuliahnya');
+  check(Boolean(terakhir.lastSeen), 'riwayat membawa waktu terakhir dibuka');
+  check((await api('GET', '/api/student/home')).status === 401, 'beranda butuh tanda sesi');
+
+  // Alasan migrasi 005: riwayat melekat pada akun, bukan nama. Budi diberi nama
+  // yang sama persis dengan Rina dan tidak boleh mewarisi riwayatnya.
+  const nimKembar = nimUji('E');
+  const kembar = (await api('POST', '/api/student/register', {
+    body: { nim: nimKembar, name: 'Rina Aprilia', password: 'rahasia123' },
+  })).data.token;
+  await api('POST', '/api/student/courses', { student: kembar, body: { code: mobile.accessCode } });
+  const berandaKembar = (await api('GET', '/api/student/home', { student: kembar })).data;
+  check(
+    berandaKembar.recent.length === 0,
+    `mahasiswa bernama sama tidak mewarisi riwayat (${berandaKembar.recent.length} baris)`,
+  );
+
   console.log('\nLanjutan: Pertemuan 2 melanjutkan Pertemuan 1');
   const teacher2 = await connect();
   teacher2.sendJson({ type: 'teacher:join', meetingId: p2.id, teacherToken: TOKEN, projectName: 'kasir-app', continuesFrom: p1.id });
@@ -328,6 +357,13 @@ async function main() {
   const invalidParent = await connect();
   invalidParent.sendJson({ type: 'teacher:join', meetingId: p1.id, teacherToken: TOKEN, continuesFrom: p1.id });
   check((await invalidParent.next('error')).message.includes('tidak valid'), 'pertemuan tidak bisa melanjutkan dirinya sendiri');
+
+  const berandaLive = (await api('GET', '/api/student/home', { student: rina })).data;
+  const mkLive = berandaLive.courses.find((c) => c.slug === mobile.slug);
+  check(Boolean(mkLive.live), 'beranda melaporkan mata kuliah yang sedang live');
+  check(mkLive.live.id === p2.id, 'sesi live yang dilaporkan adalah pertemuan yang benar');
+  check(mkLive.live.reconnecting === false, 'sesi live tidak ditandai sedang menyambung ulang');
+  check(mkLive.meetingCount === 2, `jumlah pertemuan ikut bertambah (${mkLive.meetingCount})`);
 
   console.log('\nVisibilitas & hapus');
   check((await admin('DELETE', `/api/admin/meetings/${p2.id}`)).status === 409, 'pertemuan yang sedang live tidak bisa dihapus');
@@ -360,6 +396,7 @@ async function main() {
   check((await admin('DELETE', `/api/admin/students/${nimRina}`)).status === 204, 'akun uji dihapus');
   check((await admin('DELETE', `/api/admin/students/${nimBudi}`)).status === 204, 'akun uji kedua dihapus');
   check((await admin('DELETE', `/api/admin/students/${nimTarget}`)).status === 204, 'akun uji ketiga dihapus');
+  check((await admin('DELETE', `/api/admin/students/${nimKembar}`)).status === 204, 'akun uji senama dihapus');
   check((await api('GET', '/api/student/me', { student: rina })).status === 401, 'sesi ikut terhapus bersama akun');
 
   console.log(`\nSemua ${passed} pengecekan lulus.`);

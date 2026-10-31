@@ -1,20 +1,39 @@
-import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import JoinGate from "../components/JoinGate.jsx";
 import SessionHeader from "../components/session/SessionHeader.jsx";
 import ProtectedArea from "../components/ProtectedArea.jsx";
 import CodePanel from "../components/session/CodePanel.jsx";
 import FileTree from "../components/session/FileTree.jsx";
 import SessionBar from "../components/session/SessionBar.jsx";
-import { Card, EmptyState, Icon } from "../components/ui/index.js";
+import { Button, Card, EmptyState, Icon } from "../components/ui/index.js";
 import { useStudentAuth } from "../hooks/useStudentAuth.jsx";
 import { storage } from "../lib/storage.js";
 import useLiveSession from "../hooks/useLiveSession.js";
 
-export default function MeetingPage() {
+export default function MeetingPage({ focus = false }) {
   const { slug, meetingId } = useParams();
+  const navigate = useNavigate();
   const { student, token, logout } = useStudentAuth();
   const [gateMessage, setGateMessage] = useState(null);
+
+  // Pilihan terakhir diingat, jadi yang terbiasa layar penuh tidak perlu
+  // menekan tombolnya tiap pertemuan.
+  function gantiMode(keFokus) {
+    storage.setFocusMode(keFokus);
+    const tujuan = keFokus ? `/fokus/mk/${slug}/p/${meetingId}` : `/mk/${slug}/p/${meetingId}`;
+    navigate(tujuan, { replace: true });
+  }
+
+  // Esc keluar dari layar penuh; tanpa ini mode fokus terasa seperti jalan buntu.
+  useEffect(() => {
+    if (!focus) return undefined;
+    function onKeyDown(event) {
+      if (event.key === "Escape") gantiMode(false);
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  });
 
   if (gateMessage) {
     return <JoinGate slug={slug} message={gateMessage} onSuccess={() => setGateMessage(null)} />;
@@ -27,6 +46,8 @@ export default function MeetingPage() {
       meetingId={meetingId}
       token={token}
       studentName={student?.name || ""}
+      focus={focus}
+      onToggleFocus={() => gantiMode(!focus)}
       onAccessRevoked={setGateMessage}
       onSessionExpired={logout}
     />
@@ -64,7 +85,17 @@ export function MeetingPreviewPage() {
   );
 }
 
-function MeetingViewer({ slug, meetingId, token, teacherToken, studentName, onAccessRevoked, onSessionExpired }) {
+function MeetingViewer({
+  slug,
+  meetingId,
+  token,
+  teacherToken,
+  studentName,
+  focus = false,
+  onToggleFocus,
+  onAccessRevoked,
+  onSessionExpired,
+}) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const {
     connectionStatus,
@@ -115,10 +146,10 @@ function MeetingViewer({ slug, meetingId, token, teacherToken, studentName, onAc
   const changeCount = Object.keys(changes).length;
   const highlights = isLive && teacherSelection?.path === selectedFile ? teacherSelection.selections : null;
 
-  return (
-    <div className="lc-page lc-session-page">
-      {/* Satu jendela ala VS Code: title bar, Explorer, editor dan status bar menempel tanpa celah. */}
-      <div className="lc-ide">
+  // Di dalam kerangka, .lc-main sudah jadi halamannya; pembungkus .lc-page
+  // kedua hanya akan menambah tinggi dan memunculkan gulir ganda.
+  const inti = (
+    <div className={["lc-ide", !focus && "lc-ide--embedded"].filter(Boolean).join(" ")}>
         <SessionHeader
           crumb={`${courseName} / ${meeting ? `Pertemuan ${meeting.number}` : "Pertemuan"}`}
           title={meeting ? meeting.title || `Pertemuan ${meeting.number}` : "Memuat pertemuan..."}
@@ -133,6 +164,18 @@ function MeetingViewer({ slug, meetingId, token, teacherToken, studentName, onAc
             )
           }
           student={studentName}
+          actions={
+            onToggleFocus && (
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={focus ? "chevrons-ud" : "eye"}
+                onClick={onToggleFocus}
+                title={focus ? "Keluar dari layar penuh (Esc)" : "Buka layar penuh"}>
+                {focus ? "Keluar" : "Fokus"}
+              </Button>
+            )
+          }
         />
 
         {teacherWaiting && (
@@ -194,7 +237,9 @@ function MeetingViewer({ slug, meetingId, token, teacherToken, studentName, onAc
           isLive={isLive}
           language={selectedFile ? files[selectedFile]?.language : null}
         />
-      </div>
     </div>
   );
+
+  // Layar penuh memakai pembungkus halamannya sendiri; di kerangka tidak perlu.
+  return focus ? <div className="lc-page lc-session-page">{inti}</div> : inti;
 }

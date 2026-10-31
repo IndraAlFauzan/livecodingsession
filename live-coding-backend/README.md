@@ -41,6 +41,9 @@ npm run dev
 | `TEACHER_GRACE_MS` | Lama sesi ditahan tetap live saat koneksi dosen putus, default `120000`. Dosen pamit dari VS Code tetap mengakhiri sesi seketika |
 | `DB_PATH` | Lokasi file database, default `data/livecoding.db` |
 
+`meeting_viewers` dicatat **per akun** (`student_id`), bukan per nama — dua mahasiswa bernama
+sama adalah dua baris. Baris dari masa sebelum ada akun dipertahankan dengan `student_id` NULL.
+
 Endpoint `GET /api/admin/meetings/:id/viewers` mengembalikan `viewers` (semua yang pernah masuk, dari tabel `meeting_viewers`) dan `watchingNow` (yang sedang tersambung). Dosen juga menerima pesan WebSocket `room:viewers` setiap ada mahasiswa masuk, keluar, atau berpindah file. Tiap penonton membawa `nim` dan `name` dari akunnya, jadi dua mahasiswa bernama mirip tetap bisa dibedakan.
 
 ### Mengubah skema database
@@ -107,6 +110,7 @@ Semua rute di bawah `/me` dan `/courses` butuh header `X-Student-Token` dari has
 | POST | `/api/student/register` | `{ nim, name, password }` → `{ student, token }` |
 | POST | `/api/student/login` | `{ nim, password }` → `{ student, token }` |
 | POST | `/api/student/logout` | Mematikan tanda sesi perangkat ini saja |
+| GET | `/api/student/home` | Satu panggilan untuk beranda: akun, mata kuliah, sesi yang sedang live, pertemuan terakhir dibuka |
 | GET | `/api/student/me` | Akun beserta riwayat mata kuliah |
 | POST | `/api/student/password` | `{ currentPassword, newPassword }`; perangkat lain dikeluarkan |
 | POST | `/api/student/courses` | `{ code }` → bergabung ke mata kuliah |

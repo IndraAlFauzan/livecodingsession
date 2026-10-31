@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import JoinGate from "../components/JoinGate.jsx";
-import Brand from "../components/layout/Brand.jsx";
+import AppHeader from "../components/layout/AppHeader.jsx";
 import MeetingCard from "../components/admin/MeetingCard.jsx";
 import { Button, Card, EmptyState, Tabs } from "../components/ui/index.js";
 import { useStudentAuth } from "../hooks/useStudentAuth.jsx";
+import { storage } from "../lib/storage.js";
+import { meetingPath } from "../utils/meetingStatus.js";
 import { formatDateTime, studentApi } from "../lib/api.js";
-import Copyright from "../utils/copyright.jsx";
 
 const REFRESH_MS = 15000;
 
@@ -67,7 +68,7 @@ export default function CoursePage() {
   const counts = FILTERS.map((item) => meetings.filter((meeting) => item.match(meeting.status)).length);
   const shown = meetings.filter((meeting) => FILTERS[filter].match(meeting.status));
 
-  const open = (meeting) => navigate(`/mk/${slug}/p/${meeting.id}`);
+  const open = (meeting) => navigate(meetingPath(slug, meeting.id, storage.getFocusMode()));
 
   function cardFor(meeting) {
     return (
@@ -95,18 +96,20 @@ export default function CoursePage() {
   }
 
   return (
-    <div className="lc-page lc-page--wide">
-      <div className="lc-page__body">
-        <Brand size="sm" />
-        <div className="lc-pagehead">
-          <div className="lc-pagehead__text">
-            <h1 className="lc-h1">{courseName}</h1>
-            <p className="lc-sub">{student ? `Masuk sebagai ${student.name} (${student.nim})` : ""}</p>
-          </div>
-          <Button variant="secondary" icon="chevron-left" onClick={() => navigate("/")}>
-            Beranda
+    <>
+      <AppHeader
+        crumb="Mata kuliah"
+        title={courseName}
+        live={Boolean(live)}
+        user={student?.name}
+        actions={
+          <Button variant="secondary" icon="chevron-left" onClick={() => navigate("/mk")}>
+            Semua mata kuliah
           </Button>
-        </div>
+        }
+      />
+
+      <div className="lc-page__body">
 
         {error && (
           <Card className="lc-notice" role="alert">
@@ -148,7 +151,6 @@ export default function CoursePage() {
           </>
         )}
       </div>
-      <Copyright />
-    </div>
+    </>
   );
 }

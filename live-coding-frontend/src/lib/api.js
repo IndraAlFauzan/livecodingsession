@@ -33,6 +33,7 @@ export const studentApi = {
   login: (nim, password) => request("/api/student/login", { method: "POST", body: { nim, password } }),
   logout: (token) => request("/api/student/logout", { method: "POST", headers: auth(token) }),
   me: (token) => request("/api/student/me", { headers: auth(token) }),
+  home: (token) => request("/api/student/home", { headers: auth(token) }),
   changePassword: (token, currentPassword, newPassword) =>
     request("/api/student/password", { method: "POST", headers: auth(token), body: { currentPassword, newPassword } }),
   joinCourse: (token, code) =>

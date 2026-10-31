@@ -169,9 +169,9 @@ function attachRealtime(server) {
     ws.studentNim = akun.nim;
     ws.studentName = akun.name;
 
-    // Daftar "siapa yang pernah membuka pertemuan ini" tetap seperti sebelumnya;
-    // bedanya namanya kini berasal dari akun, bukan dari kiriman klien.
-    db.recordViewer(meeting.id, akun.name);
+    // Dicatat per akun: inilah yang menyuplai "terakhir kamu buka" di beranda,
+    // sekaligus daftar kehadiran di halaman dosen.
+    db.recordViewer(meeting.id, akun.id, akun.name);
     send(ws, buildInit(meeting.id));
     live.pushViewers(meeting.id);
   }

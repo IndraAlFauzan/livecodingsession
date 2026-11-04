@@ -10,3 +10,5 @@ live-coding-frontend/DESIGN.md
 /live-coding-frontend/design-system
 /.claude
 backups/
+
+/live-coding-backend/examples

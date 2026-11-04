@@ -33,6 +33,11 @@ export function buildFileTree(rootPath: string, matcher: ReturnType<typeof ignor
           return a.name.localeCompare(b.name);
         });
 
+      // Folder yang jadi kosong setelah penyaringan ikut dibuang. Selain
+      // mengurangi kekacauan, folder kosong seperti "lib/generated" justru
+      // memberi tahu mahasiswa ada sesuatu yang disembunyikan di situ.
+      if (children.length === 0) return null;
+
       return {
         name,
         path: relativePath,

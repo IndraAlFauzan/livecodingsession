@@ -105,7 +105,7 @@ async function show(uri?: vscode.Uri, selected?: vscode.Uri[]) {
 
   const choice = await vscode.window.showWarningMessage(
     `${describe(stillHidden.length, stillHidden)} masih tersembunyi karena aturan lain: folder induknya disembunyikan, ` +
-      `termasuk daftar bawaan (misalnya .env, build, node_modules), atau setting liveCoding.exclude.`,
+      `daftar bawaan (misalnya .env, build, node_modules, .claude), .gitignore proyek, atau setting liveCoding.exclude.`,
     `Buka ${IGNORE_FILE}`,
   );
   const file = ignoreFilePath();

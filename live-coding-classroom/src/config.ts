@@ -30,10 +30,26 @@ const BUILT_IN_EXCLUDE = [
   "storage/framework",
   "bootstrap/cache",
   "public/build",
-  // editor
+  // editor & perkakas AI
   ".idea",
   ".vscode",
   ".DS_Store",
+  ".claude",
+  ".cursor",
+  ".windsurf",
+  ".aider*",
+  ".continue",
+  // .github sengaja TIDAK disembunyikan: workflow CI bukan rahasia, dan di
+  // kelas RPL itu justru bahan ajar.
+  // Python
+  ".venv",
+  "venv",
+  "__pycache__",
+  ".pytest_cache",
+  ".mypy_cache",
+  // Rust / Java / Maven
+  "target",
+  ".m2",
   // berisi nama file yang disembunyikan dosen
   IGNORE_FILE,
   // rahasia & data lokal
@@ -44,6 +60,20 @@ const BUILT_IN_EXCLUDE = [
   "*.jks",
   "key.properties",
   "*.pem",
+  "*.key",
+  "*.p12",
+  "*.mobileprovision",
+  "id_rsa*",
+  "id_ed25519*",
+  ".npmrc",
+  ".netrc",
+  ".ssh",
+  ".aws",
+  // kunci layanan: sering ada di proyek Flutter/Android/iOS
+  "google-services.json",
+  "GoogleService-Info.plist",
+  "serviceAccount*.json",
+  "secrets.*",
   "*.log",
   "*.sqlite",
   "*.sqlite3",
@@ -62,6 +92,7 @@ export function getConfig() {
     backendUrl: config.get<string>("backendUrl", "ws://localhost:3000").replace(/\/$/, ""),
     teacherToken: config.get<string>("teacherToken", "dev-secret-token"),
     exclude: [...BUILT_IN_EXCLUDE, ...extraExclude],
+    respectGitignore: config.get<boolean>("respectGitignore", true),
     maxFileSizeKb: config.get<number>("maxFileSizeKb", 512),
   };
 }
@@ -80,6 +111,28 @@ export function workspaceRoot(): vscode.WorkspaceFolder | undefined {
 export function ignoreFilePath(): string | undefined {
   const root = workspaceRoot();
   return root ? path.join(root.uri.fsPath, IGNORE_FILE) : undefined;
+}
+
+// Apa yang tidak masuk git biasanya memang tidak layak disiarkan: build, cache,
+// kunci layanan. Daftar bawaan pasti ketinggalan zaman, sementara .gitignore
+// proyek selalu mutakhir karena dosen memeliharanya sendiri.
+//
+// Aturan negasi (!...) sengaja dibuang. Di git, "!" membatalkan aturan
+// sebelumnya; di sini pembatalan itu berarti membocorkan berkas yang mungkin
+// justru ingin disembunyikan. Lebih aman menyembunyikan berlebih -- dosen bisa
+// menampilkannya lagi lewat .livecodingignore.
+export function readGitignoreRules(): string[] {
+  const root = workspaceRoot();
+  if (!root) return [];
+  try {
+    return fs
+      .readFileSync(path.join(root.uri.fsPath, ".gitignore"), "utf8")
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith("#") && !line.startsWith("!"));
+  } catch {
+    return [];
+  }
 }
 
 export function readManualRules(): string[] {
@@ -102,7 +155,10 @@ export function invalidateIgnoreMatcher() {
 }
 
 export function createIgnoreMatcher(): Ignore {
-  cachedMatcher ??= ignore().add(getConfig().exclude).add(readManualRules());
+  cachedMatcher ??= ignore()
+    .add(getConfig().exclude)
+    .add(getConfig().respectGitignore ? readGitignoreRules() : [])
+    .add(readManualRules());
   return cachedMatcher;
 }
 

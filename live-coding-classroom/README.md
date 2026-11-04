@@ -29,9 +29,18 @@ Klik kanan file atau folder di Explorer (atau di tab editor), lalu pilih **Sembu
 | `liveCoding.backendUrl` | URL WebSocket backend, contoh `ws://localhost:3000` atau `wss://api.domainkamu.com` |
 | `liveCoding.teacherToken` | Harus sama dengan `TEACHER_TOKEN` di backend |
 | `liveCoding.exclude` | Pola **tambahan** yang tidak dibagikan (format .gitignore) |
+| `liveCoding.respectGitignore` | Ikut menyembunyikan isi `.gitignore` proyek (bawaan: hidup) |
 | `liveCoding.maxFileSizeKb` | Ukuran maksimal file teks, default 512 KB |
 
-Selalu dikecualikan: `.git`, `node_modules`, `vendor`, `dist`, `build`, `out`, `coverage`, `.dart_tool`, `.gradle`, `ios/Pods`, `.flutter-plugins*`, `storage/logs`, `storage/framework`, `bootstrap/cache`, `public/build`, `.idea`, `.vscode`, `.env` dan `.env.*` (kecuali `.env.example`), file keystore/`key.properties`/`*.pem`, log, database SQLite, dan arsip. Gambar dan media hanya tampil namanya.
+Tiga lapis penyaring, dari paling umum ke paling spesifik:
+
+1. **Daftar bawaan** — dependensi dan hasil build (`node_modules`, `build`, `dist`, `.dart_tool`, `.gradle`, `ios/Pods`), folder perkakas (`.git`, `.idea`, `.vscode`, `.claude`, `.cursor`, `__pycache__`, `target`), dan rahasia: `.env*`, keystore, `*.pem`, `*.key`, `id_rsa*`, `.npmrc`, `google-services.json`, `GoogleService-Info.plist`, `serviceAccount*.json`.
+2. **`.gitignore` proyek** — apa yang tidak masuk git biasanya memang tidak layak disiarkan. Daftar bawaan pasti ketinggalan zaman; `.gitignore` dipelihara dosen sendiri jadi selalu mutakhir. Matikan lewat `liveCoding.respectGitignore` kalau perlu.
+3. **`.livecodingignore`** — klik kanan file atau folder → *Sembunyikan dari mahasiswa*. Baris berawalan `!` di sini bisa membatalkan aturan dari dua lapis di atasnya.
+
+`.github` sengaja **tidak** disembunyikan: workflow CI bukan rahasia dan sering jadi bahan ajar.
+
+Folder yang jadi kosong setelah penyaringan ikut dibuang — folder kosong seperti `lib/generated/` justru memberi tahu mahasiswa ada sesuatu yang disembunyikan di situ. Gambar dan media hanya tampil namanya.
 
 ## Development
 

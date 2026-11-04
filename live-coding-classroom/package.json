@@ -138,12 +138,40 @@
         {
           "command": "liveCoding.refreshSession",
           "when": "false"
+        },
+        {
+          "command": "liveCoding.startSession",
+          "when": "liveCoding.masuk"
+        },
+        {
+          "command": "liveCoding.stopSession",
+          "when": "liveCoding.masuk"
+        },
+        {
+          "command": "liveCoding.toggleSession",
+          "when": "liveCoding.masuk"
+        },
+        {
+          "command": "liveCoding.copyStudentLink",
+          "when": "liveCoding.live"
+        },
+        {
+          "command": "liveCoding.copyAccessCode",
+          "when": "liveCoding.live"
+        },
+        {
+          "command": "liveCoding.login",
+          "when": "!liveCoding.masuk"
+        },
+        {
+          "command": "liveCoding.logout",
+          "when": "liveCoding.masuk"
         }
       ],
       "view/title": [
         {
           "command": "liveCoding.startSession",
-          "when": "view == liveCoding.session && !liveCoding.live",
+          "when": "view == liveCoding.session && !liveCoding.live && liveCoding.masuk",
           "group": "navigation@1"
         },
         {
@@ -183,7 +211,13 @@
     "viewsWelcome": [
       {
         "view": "liveCoding.session",
-        "contents": "Belum ada sesi live.\n[Mulai sesi live](command:liveCoding.startSession)\n\nBelum punya akun di perangkat ini?\n[Masuk](command:liveCoding.login)\n\nSesi berjalan dari workspace yang sedang terbuka."
+        "contents": "Masuk dulu untuk memulai sesi.\n[Masuk](command:liveCoding.login)\n\nUsername dan kata sandi diberikan admin kampus.",
+        "when": "!liveCoding.masuk"
+      },
+      {
+        "view": "liveCoding.session",
+        "contents": "Belum ada sesi live.\n[Mulai sesi live](command:liveCoding.startSession)\n\nSesi berjalan dari workspace yang sedang terbuka.",
+        "when": "liveCoding.masuk"
       }
     ],
     "keybindings": [

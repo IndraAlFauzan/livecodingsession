@@ -14,9 +14,6 @@ export type Identitas = {
 };
 
 let simpanan: vscode.SecretStorage | undefined;
-const berubah = new vscode.EventEmitter<void>();
-export const onCredentialChanged = berubah.event;
-
 let identitas: Identitas | null = null;
 
 export function initAuth(context: vscode.ExtensionContext) {
@@ -37,7 +34,6 @@ export async function setCredential(nilai: string | undefined) {
   if (nilai) await simpanan?.store(KUNCI, nilai);
   else await simpanan?.delete(KUNCI);
   identitas = null;
-  berubah.fire();
 }
 
 export function getIdentitas(): Identitas | null {

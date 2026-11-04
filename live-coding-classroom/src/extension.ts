@@ -9,6 +9,13 @@ import { detectLanguage } from "./languageDetector";
 import { debounceByKey, clearDebounces } from "./debounce";
 import { registerHiddenFiles } from "./hiddenFiles";
 import { initAuth, getCredential, login, logout, refreshIdentitas, labelIdentitas } from "./auth";
+
+// Dibaca render() yang berjalan sinkron; diperbarui tiap kredensial berubah.
+let sudahMasuk = false;
+
+async function segarkanStatusMasuk() {
+  sudahMasuk = Boolean(await getCredential());
+}
 import { SocketPayload } from "./types";
 
 type LiveTarget = {
@@ -69,18 +76,22 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("liveCoding.menu", showLiveMenu),
     vscode.commands.registerCommand("liveCoding.login", async () => {
       if (await login()) {
+        await segarkanStatusMasuk();
         await refreshIdentitas();
         render();
       }
     }),
     vscode.commands.registerCommand("liveCoding.logout", async () => {
       await logout();
+      await segarkanStatusMasuk();
       render();
     }),
   );
 
   // Identitas dipakai status bar dan panel; diambil sekali saat aktivasi.
-  refreshIdentitas().then(() => render());
+  segarkanStatusMasuk()
+    .then(() => refreshIdentitas())
+    .then(() => render());
 
   render();
 
@@ -296,6 +307,9 @@ function render() {
   statusItem.show();
 
   vscode.commands.executeCommand("setContext", "liveCoding.live", current === "live");
+  // Menentukan sambutan mana yang tampil di panel: menawarkan "Mulai sesi live"
+  // sebelum masuk hanya mengarahkan dosen ke pesan galat.
+  vscode.commands.executeCommand("setContext", "liveCoding.masuk", Boolean(sudahMasuk));
   sessionView.update({
     phase: current,
     label: live?.target.label ?? null,

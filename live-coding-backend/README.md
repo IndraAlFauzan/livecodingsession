@@ -9,6 +9,45 @@ Backend Node.js (Express + WebSocket + SQLite) yang menerima kode dari VS Code E
 - **Pertemuan** menyimpan snapshot kode terakhir. Status: `draft` (belum dimulai), `live`, `finished`. Bisa ditampilkan atau disembunyikan.
 - **Lanjutan**: pertemuan bisa menandai `continuesFrom` pertemuan lain. File diberi label `new`/`modified` dibanding pertemuan tersebut.
 
+## Dosen dan kepemilikan
+
+Dua bentuk kredensial diterima di `/api/admin/*` dan di `teacher:join`:
+
+| Kredensial | Lingkup |
+|---|---|
+| `TEACHER_TOKEN` dari env | **Admin kampus** — melihat dan mengubah semua mata kuliah, membuat akun dosen |
+| Tanda sesi dosen | Hanya mata kuliah yang dia ampu |
+
+Akun dosen berisi empat hal: **username** (unik, huruf kecil, 3–30 karakter — dipakai masuk),
+**kode dosen**, **nama lengkap**, dan **kata sandi**. Tidak ada email: tidak ada yang
+mengirim surel ke dosen, jadi menyimpannya hanya menambah data pribadi yang harus dijaga.
+
+Tiap dosen punya **kode dosen** (`teachers.code`, misalnya `OCH`) — unik, 2–10 huruf/angka,
+dinormalkan ke huruf besar. Mahasiswa melihatnya di samping nama mata kuliah, karena kelas
+paralel sering bernama persis sama dan hanya kode dosennya yang membedakan.
+
+`courses.teacher_id` menyimpan pemiliknya. `NULL` berarti milik admin kampus — itulah keadaan
+semua mata kuliah yang dibuat sebelum migrasi 006, jadi penambahan ini tidak memutus apa pun.
+Pindahkan kepemilikan lewat `PATCH /api/admin/courses/:id/owner`.
+
+Pemeriksaan kepemilikan ada di **`loadCourse` dan `loadMeeting`**, bukan di tiap rute. Itu
+disengaja: rute admin baru otomatis ikut terlindungi tanpa perlu diingat. Mata kuliah milik
+orang lain dijawab **404, bukan 403** — 403 akan membocorkan bahwa id itu ada.
+
+Tiga tindakan dibatasi admin kampus saja: membuat/menonaktifkan akun dosen, memindah
+kepemilikan, dan menghapus akun mahasiswa. Dosen hanya boleh mereset sandi mahasiswa yang
+memang ada di salah satu mata kuliahnya.
+
+| Method | Path | Keterangan |
+|---|---|---|
+| POST | `/api/admin/login` | `{ username, password }` → `{ teacher, token }` |
+| POST | `/api/admin/logout` | Mematikan tanda sesi ini |
+| GET | `/api/admin/teachers` | Admin: daftar dosen |
+| POST | `/api/admin/teachers` | Admin: `{ username, code, name }`, sandi awal dibuat server |
+| POST | `/api/admin/teachers/:id/reset-password` | Admin: sandi baru, semua sesinya dicabut |
+| PATCH | `/api/admin/teachers/:id` | Admin: `{ active }` — menonaktifkan, bukan menghapus |
+| PATCH | `/api/admin/courses/:id/owner` | Admin: `{ teacherId }` atau `null` |
+
 ## Kata sandi
 
 Dosen tidak bisa membaca kata sandi siapa pun. Yang tersedia hanya reset: server membuat

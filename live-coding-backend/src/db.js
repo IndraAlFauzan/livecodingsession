@@ -104,6 +104,10 @@ function toCourse(row) {
     accessCode: row.access_code,
     codeActive: Boolean(row.code_active),
     createdAt: row.created_at,
+    teacherId: row.teacher_id ?? null,
+    // Ikut dibawa kalau kuerinya join ke teachers; dipakai mahasiswa untuk
+    // membedakan kelas paralel yang namanya sama persis.
+    teacher: row.teacher_code ? { code: row.teacher_code, name: row.teacher_name } : null,
     meetingCount: row.meeting_count ?? undefined,
   };
 }
@@ -130,36 +134,48 @@ function toMeeting(row) {
 
 // ---------- courses ----------
 
-function listCourses() {
+// teacherId null berarti admin kampus: melihat semuanya, termasuk mata kuliah
+// warisan yang belum punya pemilik.
+function listCourses(teacherId = null) {
+  const filter = teacherId == null ? '' : 'WHERE c.teacher_id = ?';
+  const args = teacherId == null ? [] : [teacherId];
   return db
     .prepare(
-      `SELECT c.*, (SELECT COUNT(*) FROM meetings m WHERE m.course_id = c.id) AS meeting_count
-       FROM courses c ORDER BY c.name`,
+      `SELECT c.*, t.code AS teacher_code, t.name AS teacher_name,
+              (SELECT COUNT(*) FROM meetings m WHERE m.course_id = c.id) AS meeting_count
+       FROM courses c LEFT JOIN teachers t ON t.id = c.teacher_id
+       ${filter} ORDER BY c.name`,
     )
-    .all()
+    .all(...args)
     .map(toCourse);
 }
 
+// Selalu ikut membawa dosennya: setiap pemanggil yang menampilkan mata kuliah
+// ke mahasiswa butuh kode dosen, dan satu baris JOIN lebih murah daripada
+// kueri susulan di tiap pemanggil.
+const COURSE_SELECT = `SELECT c.*, t.code AS teacher_code, t.name AS teacher_name
+  FROM courses c LEFT JOIN teachers t ON t.id = c.teacher_id`;
+
 function getCourseById(id) {
-  return toCourse(db.prepare('SELECT * FROM courses WHERE id = ?').get(id));
+  return toCourse(db.prepare(`${COURSE_SELECT} WHERE c.id = ?`).get(id));
 }
 
 function getCourseBySlug(slug) {
-  return toCourse(db.prepare('SELECT * FROM courses WHERE slug = ?').get(slug));
+  return toCourse(db.prepare(`${COURSE_SELECT} WHERE c.slug = ?`).get(slug));
 }
 
 function getCourseByActiveCode(code) {
   const normalized = normalizeCode(code);
   if (!normalized) return null;
   return toCourse(
-    db.prepare('SELECT * FROM courses WHERE access_code = ? AND code_active = 1').get(normalized),
+    db.prepare(`${COURSE_SELECT} WHERE c.access_code = ? AND c.code_active = 1`).get(normalized),
   );
 }
 
-function createCourse(name) {
+function createCourse(name, teacherId = null) {
   const result = db
-    .prepare('INSERT INTO courses (name, slug, access_code, created_at) VALUES (?, ?, ?, ?)')
-    .run(name, uniqueSlug(name), generateAccessCode(name), now());
+    .prepare('INSERT INTO courses (name, slug, access_code, created_at, teacher_id) VALUES (?, ?, ?, ?, ?)')
+    .run(name, uniqueSlug(name), generateAccessCode(name), now(), teacherId);
   return getCourseById(Number(result.lastInsertRowid));
 }
 
@@ -176,6 +192,117 @@ function regenerateAccessCode(id) {
   if (!course) return null;
   db.prepare('UPDATE courses SET access_code = ? WHERE id = ?').run(generateAccessCode(course.name), id);
   return getCourseById(id);
+}
+
+// ---------- akun dosen ----------
+
+function toTeacher(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    username: row.username,
+    code: row.code,
+    name: row.name,
+    active: row.active === 1,
+    createdAt: row.created_at,
+    lastLogin: row.last_login,
+  };
+}
+
+function createTeacher({ username, code, name, passwordHash }) {
+  const info = db
+    .prepare('INSERT INTO teachers (username, code, name, password_hash, created_at) VALUES (?, ?, ?, ?, ?)')
+    .run(username, code, name, passwordHash, now());
+  return toTeacher(db.prepare('SELECT * FROM teachers WHERE id = ?').get(info.lastInsertRowid));
+}
+
+function getTeacherById(id) {
+  return toTeacher(db.prepare('SELECT * FROM teachers WHERE id = ?').get(id));
+}
+
+// Baris mentah: pemanggil butuh password_hash untuk diperiksa.
+function getTeacherRowByUsername(username) {
+  return db.prepare('SELECT * FROM teachers WHERE username = ?').get(username) || null;
+}
+
+function getTeacherRowByCode(code) {
+  return db.prepare('SELECT * FROM teachers WHERE code = ?').get(code) || null;
+}
+
+function listTeachers() {
+  return db
+    .prepare(
+      `SELECT t.*, (SELECT count(*) FROM courses c WHERE c.teacher_id = t.id) AS courseCount
+       FROM teachers t ORDER BY t.name COLLATE NOCASE`,
+    )
+    .all()
+    .map((row) => ({ ...toTeacher(row), courseCount: row.courseCount }));
+}
+
+function setTeacherPassword(id, passwordHash) {
+  db.prepare('UPDATE teachers SET password_hash = ? WHERE id = ?').run(passwordHash, id);
+}
+
+function setTeacherActive(id, active) {
+  db.prepare('UPDATE teachers SET active = ? WHERE id = ?').run(active ? 1 : 0, id);
+}
+
+function markTeacherLogin(id) {
+  db.prepare('UPDATE teachers SET last_login = ? WHERE id = ?').run(now(), id);
+}
+
+function deleteTeacher(id) {
+  return db.prepare('DELETE FROM teachers WHERE id = ?').run(id).changes > 0;
+}
+
+function createTeacherSession(teacherId, token) {
+  const at = now();
+  db.prepare('INSERT INTO teacher_sessions (token, teacher_id, created_at, last_seen) VALUES (?, ?, ?, ?)').run(
+    token,
+    teacherId,
+    at,
+    at,
+  );
+  return token;
+}
+
+// Akun yang dinonaktifkan tidak pernah lolos, walau tanda sesinya masih ada.
+function getTeacherBySession(token) {
+  if (typeof token !== 'string' || !token) return null;
+  const row = db
+    .prepare(
+      `SELECT t.* FROM teachers t JOIN teacher_sessions s ON s.teacher_id = t.id
+       WHERE s.token = ? AND t.active = 1`,
+    )
+    .get(token);
+  if (!row) return null;
+  db.prepare('UPDATE teacher_sessions SET last_seen = ? WHERE token = ?').run(now(), token);
+  return toTeacher(row);
+}
+
+function deleteTeacherSession(token) {
+  db.prepare('DELETE FROM teacher_sessions WHERE token = ?').run(token);
+}
+
+function deleteSessionsOfTeacher(teacherId) {
+  return db.prepare('DELETE FROM teacher_sessions WHERE teacher_id = ?').run(teacherId).changes;
+}
+
+// Dipakai membatasi reset sandi: dosen hanya boleh menolong mahasiswa yang
+// memang ada di salah satu mata kuliahnya.
+function studentSharesCourseWith(studentId, teacherId) {
+  return Boolean(
+    db
+      .prepare(
+        `SELECT 1 FROM course_enrollments e JOIN courses c ON c.id = e.course_id
+         WHERE e.student_id = ? AND c.teacher_id = ? LIMIT 1`,
+      )
+      .get(studentId, teacherId),
+  );
+}
+
+function setCourseOwner(courseId, teacherId) {
+  db.prepare('UPDATE courses SET teacher_id = ? WHERE id = ?').run(teacherId, courseId);
 }
 
 // ---------- akun mahasiswa ----------
@@ -278,6 +405,7 @@ function listEnrolledCourses(studentId) {
   return db
     .prepare(
       `SELECT c.slug, c.name, e.joined_at AS joinedAt,
+              t.code AS teacherCode, t.name AS teacherName,
               (SELECT count(*) FROM meetings m
                 WHERE m.course_id = c.id AND m.visible = 1 AND m.status != 'draft') AS meetingCount,
               (SELECT m.number FROM meetings m
@@ -286,7 +414,9 @@ function listEnrolledCourses(studentId) {
               (SELECT m.title FROM meetings m
                 WHERE m.course_id = c.id AND m.visible = 1 AND m.status != 'draft'
                 ORDER BY m.number DESC LIMIT 1) AS latestTitle
-       FROM course_enrollments e JOIN courses c ON c.id = e.course_id
+       FROM course_enrollments e
+       JOIN courses c ON c.id = e.course_id
+       LEFT JOIN teachers t ON t.id = c.teacher_id
        WHERE e.student_id = ? ORDER BY e.joined_at DESC`,
     )
     .all(studentId);
@@ -412,10 +542,11 @@ function listLiveMeetingsFor(studentId) {
   return db
     .prepare(
       `SELECT m.id, m.number, m.title, m.started_at AS startedAt,
-              c.slug AS courseSlug, c.name AS courseName
+              c.slug AS courseSlug, c.name AS courseName, t.code AS teacherCode
        FROM course_enrollments e
        JOIN meetings m ON m.course_id = e.course_id
        JOIN courses c ON c.id = e.course_id
+       LEFT JOIN teachers t ON t.id = c.teacher_id
        WHERE e.student_id = ? AND m.status = 'live' AND m.visible = 1
        ORDER BY m.started_at DESC`,
     )
@@ -428,10 +559,12 @@ function listRecentMeetingsFor(studentId, limit = 4) {
   return db
     .prepare(
       `SELECT m.id, m.number, m.title, m.status, m.started_at AS startedAt,
-              c.slug AS courseSlug, c.name AS courseName, v.last_seen AS lastSeen
+              c.slug AS courseSlug, c.name AS courseName, t.code AS teacherCode,
+              v.last_seen AS lastSeen
        FROM meeting_viewers v
        JOIN meetings m ON m.id = v.meeting_id
        JOIN courses c ON c.id = m.course_id
+       LEFT JOIN teachers t ON t.id = c.teacher_id
        JOIN course_enrollments e ON e.course_id = m.course_id AND e.student_id = v.student_id
        WHERE v.student_id = ? AND m.visible = 1 AND m.status != 'draft'
        ORDER BY v.last_seen DESC
@@ -549,6 +682,21 @@ module.exports = {
   deleteMeeting,
   startMeeting,
   finishMeeting,
+  createTeacher,
+  getTeacherById,
+  getTeacherRowByUsername,
+  getTeacherRowByCode,
+  listTeachers,
+  setTeacherPassword,
+  setTeacherActive,
+  markTeacherLogin,
+  deleteTeacher,
+  createTeacherSession,
+  getTeacherBySession,
+  deleteTeacherSession,
+  deleteSessionsOfTeacher,
+  setCourseOwner,
+  studentSharesCourseWith,
   createStudent,
   getStudentById,
   getStudentRowByNim,

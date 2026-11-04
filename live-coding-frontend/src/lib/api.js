@@ -44,12 +44,23 @@ export const studentApi = {
     request(`/api/student/courses/${encodeURIComponent(slug)}`, { method: "DELETE", headers: auth(token) }),
 };
 
+// Masuk sebagai dosen; tidak butuh token karena di sinilah tokennya dibuat.
+export const teacherAuth = {
+  login: (username, password) => request("/api/admin/login", { method: "POST", body: { username, password } }),
+};
+
 export function adminApi(token) {
   const call = (method, path, body) =>
     request(`/api/admin${path}`, { method, body, headers: { authorization: `Bearer ${token}` } });
 
   return {
     check: () => call("GET", "/check"),
+    logout: () => call("POST", "/logout"),
+    teachers: () => call("GET", "/teachers"),
+    createTeacher: (username, code, name) => call("POST", "/teachers", { username, code, name }),
+    resetTeacherPassword: (id) => call("POST", `/teachers/${id}/reset-password`),
+    setTeacherActive: (id, active) => call("PATCH", `/teachers/${id}`, { active }),
+    setCourseOwner: (courseId, teacherId) => call("PATCH", `/courses/${courseId}/owner`, { teacherId }),
     courses: () => call("GET", "/courses"),
     createCourse: (name) => call("POST", "/courses", { name }),
     updateCourse: (id, changes) => call("PATCH", `/courses/${id}`, changes),

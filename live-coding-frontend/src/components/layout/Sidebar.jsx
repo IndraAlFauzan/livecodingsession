@@ -69,7 +69,10 @@ export default function Sidebar({
               aria-current={course.id === currentCourseId ? "page" : undefined}
               onClick={() => onSelectCourse?.(course.id)}>
               <span className="lc-nav__swatch" style={{ background: SWATCH[toneForCourse(course.name)] }} />
-              <span>{course.name}</span>
+              <span className="lc-nav__name">{course.name}</span>
+              {/* Kode dosen tidak ikut terpotong: kelas paralel bernama sama,
+                  dan di sidebar yang sempit justru inilah pembedanya. */}
+              {course.teacherCode && <span className="lc-nav__kode">{course.teacherCode}</span>}
               {course.live ? (
                 <Badge status="live" size="sm" />
               ) : (

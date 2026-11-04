@@ -46,6 +46,22 @@ function cleanNim(value) {
   return /^[A-Z0-9]{5,20}$/.test(nim) ? nim : null;
 }
 
+// Username dosen. Dinormalkan ke huruf kecil supaya "OCH" dan "och" tidak jadi
+// dua akun, dan dibatasi karakter yang aman diketik maupun dibacakan.
+function cleanUsername(value) {
+  if (typeof value !== 'string') return null;
+  const username = value.trim().toLowerCase();
+  return /^[a-z0-9][a-z0-9._-]{2,29}$/.test(username) ? username : null;
+}
+
+// Kode dosen dibacakan dan diketik orang, jadi dinormalkan ke huruf besar
+// supaya "och" dan "OCH" tidak jadi dua dosen berbeda.
+function cleanTeacherCode(value) {
+  if (typeof value !== 'string') return null;
+  const code = value.trim().toUpperCase();
+  return /^[A-Z0-9]{2,10}$/.test(code) ? code : null;
+}
+
 function checkPassword(value) {
   if (typeof value !== 'string' || value.length < 8) {
     return 'Kata sandi minimal 8 karakter.';
@@ -54,4 +70,4 @@ function checkPassword(value) {
   return null;
 }
 
-module.exports = { hashPassword, verifyPassword, newSessionToken, tempPassword, cleanNim, checkPassword };
+module.exports = { hashPassword, verifyPassword, newSessionToken, tempPassword, cleanNim, cleanUsername, cleanTeacherCode, checkPassword };

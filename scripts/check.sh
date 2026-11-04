@@ -55,6 +55,19 @@ judul "Backend"
 judul "Extension"
 (cd live-coding-classroom && npm run compile >/dev/null 2>&1) && lolos "compile" || tidak "extension compile"
 
+# Uji auth butuh backend hidup: ia benar-benar masuk, lalu keluar.
+(
+  cd live-coding-backend
+  TEACHER_TOKEN="$TOKEN_UJI" PORT="$PORT_UJI" DB_PATH="$DB_UJI" node src/index.js > /tmp/check-backend2.log 2>&1 &
+  server=$!
+  trap 'kill "$server" 2>/dev/null || true' EXIT
+  siap() { curl -sf --connect-timeout 2 --max-time 5 "http://localhost:$PORT_UJI/health" >/dev/null; }
+  for _ in $(seq 1 30); do siap && break; sleep 1; done
+  siap || exit 1
+  cd ../live-coding-classroom
+  BACKEND_WS="ws://localhost:$PORT_UJI" TEACHER_TOKEN="$TOKEN_UJI" npm test > /tmp/check-auth.log 2>&1
+) && lolos "uji auth ($(grep -c '  ok  ' /tmp/check-auth.log) pengecekan)" || { tidak "extension auth"; tail -5 /tmp/check-auth.log 2>/dev/null | sed 's/^/        /'; }
+
 # ---------- ringkasan ----------
 if [ ${#gagal[@]} -eq 0 ]; then
   printf '\n\033[32mSemua pemeriksaan lulus.\033[0m Aman untuk push.\n\n'

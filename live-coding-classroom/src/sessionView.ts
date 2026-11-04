@@ -7,6 +7,7 @@ export type SessionSnapshot = {
   label: string | null;
   accessCode: string | null;
   studentUrl: string | null;
+  identitas: string;
   viewers: Viewer[];
 };
 
@@ -15,6 +16,7 @@ const EMPTY: SessionSnapshot = {
   label: null,
   accessCode: null,
   studentUrl: null,
+  identitas: "belum masuk",
   viewers: [],
 };
 
@@ -22,6 +24,7 @@ type Node =
   | { kind: "status" }
   | { kind: "code" }
   | { kind: "link" }
+  | { kind: "identitas" }
   | { kind: "viewersHead" }
   | { kind: "viewer"; viewer: Viewer }
   | { kind: "noViewer" };
@@ -43,7 +46,7 @@ export class SessionView implements vscode.TreeDataProvider<Node> {
     const { phase, viewers } = this.snapshot;
     if (phase === "idle") return [];
 
-    const nodes: Node[] = [{ kind: "status" }];
+    const nodes: Node[] = [{ kind: "status" }, { kind: "identitas" }];
     if (phase === "live") {
       nodes.push({ kind: "code" }, { kind: "link" }, { kind: "viewersHead" });
       if (viewers.length === 0) nodes.push({ kind: "noViewer" });
@@ -53,7 +56,7 @@ export class SessionView implements vscode.TreeDataProvider<Node> {
   }
 
   getTreeItem(node: Node): vscode.TreeItem {
-    const { phase, label, accessCode, studentUrl, viewers } = this.snapshot;
+    const { phase, label, accessCode, studentUrl, identitas, viewers } = this.snapshot;
 
     if (node.kind === "status") {
       const text =
@@ -81,6 +84,14 @@ export class SessionView implements vscode.TreeDataProvider<Node> {
       item.description = studentUrl ? "klik untuk menyalin" : undefined;
       item.iconPath = new vscode.ThemeIcon("link");
       item.command = { command: "liveCoding.copyStudentLink", title: "Salin link mahasiswa" };
+      return item;
+    }
+
+    if (node.kind === "identitas") {
+      const item = new vscode.TreeItem(identitas);
+      item.description = "dosen";
+      item.tooltip = "Akun yang sedang dipakai. Ganti lewat Live Coding: Masuk.";
+      item.iconPath = new vscode.ThemeIcon("account");
       return item;
     }
 

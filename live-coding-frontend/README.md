@@ -14,7 +14,8 @@ Web untuk mahasiswa (melihat kode dosen) dan halaman admin dosen. React + Vite +
 | `/akun` | mahasiswa | Identitas, ganti kata sandi, keluar |
 | `/mk/:slug/p/:id` | mahasiswa | Viewer kode: real-time saat live, arsip read-only setelah selesai |
 | `/pratinjau/mk/:slug/p/:id` | dosen | Pratinjau halaman mahasiswa memakai teacher token, tanpa akun mahasiswa |
-| `/admin` | dosen | Kelola mata kuliah, kode akses, dan pertemuan (login dengan teacher token) |
+| `/dosen` | dosen | Masuk dengan username + kata sandi, lalu kelola mata kuliahnya |
+| `/admin` | admin kampus | Masuk dengan `TEACHER_TOKEN`; melihat semua mata kuliah dan mengelola akun dosen |
 
 ## Satu permintaan untuk seluruh aplikasi
 
@@ -51,6 +52,33 @@ Selain nama, perhatikan juga **selektor turunan**. `.lc-codepanel pre` (0,1,1) m
 aturannya dilingkupi jadi `.lc-md .lc-md__pre`. Apa pun yang dirender di dalam `.lc-codepanel`
 mewarisi aturan turunannya. Lima kelas kini sengaja ditimpa (`.lc-app`,
 `.lc-input`, `.lc-dialog-backdrop`), masing-masing dengan komentar alasannya.
+
+## Halaman admin: dua cara masuk
+
+Dua pintu terpisah, bukan satu dengan sakelar. `/dosen` untuk **dosen** (username +
+kata sandi, dapat tanda sesi dari server), `/admin` untuk **admin kampus**
+(`TEACHER_TOKEN` dari env, tanpa sesi). Dosen tidak perlu tahu pintu admin ada, dan admin
+tidak perlu melewati pilihan tiap kali masuk. Keduanya memakai `AdminLogin` dengan prop
+`mode`; setelah masuk, keduanya mendarat di dashboard yang sama.
+
+`AdminPage` memanggil `/api/admin/check` untuk tahu identitasnya, lalu meneruskan ke dashboard.
+Dua hal hanya muncul untuk admin kampus: menu **Dosen** (`TeacherRoster`) dan kartu
+**Pengampu** (`CourseOwner`) di halaman mata kuliah. Keduanya juga ditolak server dengan 403,
+jadi menyembunyikannya murni soal tidak menawarkan yang tidak bisa dipakai.
+
+Sandi dosen tidak pernah diketik admin: server membuatnya, ditampilkan sekali untuk dibacakan.
+Pola yang sama dengan reset sandi mahasiswa.
+
+## Kode dosen
+
+`components/student/TeacherCode.jsx` menampilkan kode dosen (misalnya `OCH`) di samping nama
+mata kuliah: beranda, daftar mata kuliah, sidebar, dan header halaman mata kuliah. Kelas
+paralel sering bernama persis sama, jadi tanpa ini mahasiswa tidak bisa membedakannya — paling
+terasa di sidebar, yang memotong nama panjang.
+
+Karena itu di sidebar hanya **namanya** yang boleh terpotong (`.lc-nav__name`); kodenya
+`flex-shrink: 0` supaya tetap terbaca. Mata kuliah milik admin kampus belum punya dosen, dan
+komponennya tidak menampilkan apa pun saat itu.
 
 ## Kerangka halaman
 

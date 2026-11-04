@@ -62,6 +62,7 @@ export default function CoursePage() {
   }
 
   const courseName = data?.course.name || "Mata kuliah";
+  const dosen = data?.course.teacher;
   // Terbaru di atas: di akhir semester mahasiswa paling sering mencari pertemuan terakhir.
   const meetings = [...(data?.meetings || [])].sort((a, b) => b.number - a.number);
   const live = meetings.find((meeting) => meeting.status === "live") || null;
@@ -97,7 +98,12 @@ export default function CoursePage() {
 
   return (
     <>
-      <AppHeader crumb="Mata kuliah" title={courseName} live={Boolean(live)} user={student?.name} />
+      <AppHeader
+        crumb={dosen ? `Mata kuliah · ${dosen.code}${dosen.name ? ` — ${dosen.name}` : ""}` : "Mata kuliah"}
+        title={courseName}
+        live={Boolean(live)}
+        user={student?.name}
+      />
 
       <div className="lc-page__body">
 

@@ -27,7 +27,7 @@ Klik kanan file atau folder di Explorer (atau di tab editor), lalu pilih **Sembu
 | Setting | Keterangan |
 |---|---|
 | `liveCoding.backendUrl` | URL WebSocket backend, contoh `ws://localhost:3000` atau `wss://api.domainkamu.com` |
-| `liveCoding.teacherToken` | Harus sama dengan `TEACHER_TOKEN` di backend |
+| `liveCoding.teacherToken` | **Usang.** Dipindahkan ke penyimpanan rahasia VS Code; jalankan `Live Coding: Masuk` lalu hapus setelan ini |
 | `liveCoding.exclude` | Pola **tambahan** yang tidak dibagikan (format .gitignore) |
 | `liveCoding.respectGitignore` | Ikut menyembunyikan isi `.gitignore` proyek (bawaan: hidup) |
 | `liveCoding.maxFileSizeKb` | Ukuran maksimal file teks, default 512 KB |
@@ -41,6 +41,26 @@ Tiga lapis penyaring, dari paling umum ke paling spesifik:
 `.github` sengaja **tidak** disembunyikan: workflow CI bukan rahasia dan sering jadi bahan ajar.
 
 Folder yang jadi kosong setelah penyaringan ikut dibuang — folder kosong seperti `lib/generated/` justru memberi tahu mahasiswa ada sesuatu yang disembunyikan di situ. Gambar dan media hanya tampil namanya.
+
+## Masuk sebagai dosen
+
+Jalankan **Live Coding: Masuk** dari Command Palette. Kalau `liveCoding.backendUrl` masih
+bawaan (`ws://localhost:3000`), alamat server ditanyakan lebih dulu — alamat berawalan
+`https://` diterima dan diubah sendiri jadi `wss://`, karena orang biasanya menyalin alamat
+halaman admin. Tersimpan sebagai setelan User; alamat server bukan rahasia.
+
+Lalu dua pilihan: sebagai **dosen** dengan username + kata sandi dari admin kampus, atau sebagai
+**admin kampus** dengan `TEACHER_TOKEN`.
+
+Kredensialnya disimpan di **SecretStorage** VS Code, bukan `settings.json`. Setelan lama masih
+dibaca sebagai cadangan supaya yang sudah memakainya tidak mendadak terkunci — tapi
+`settings.json` ikut Settings Sync ke akun, dan untuk setelan Workspace ia hidup di
+`.vscode/settings.json` yang gampang ter-commit. Begitu sudah masuk lewat perintah, hapus
+setelan lamanya.
+
+Akun yang sedang dipakai terlihat di tooltip status bar dan baris teratas panel Live Coding —
+berguna saat satu komputer dipakai bergantian beberapa dosen. **Live Coding: Keluar** mencabut
+tanda sesinya di server.
 
 ## Development
 

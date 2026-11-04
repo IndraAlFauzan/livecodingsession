@@ -204,3 +204,10 @@
 .lc-peek:hover {
   color: var(--ink);
 }
+
+/* .lc-input--mono di bundle.css memaksa huruf besar — benar untuk kode akses
+   dan NIM, salah untuk username yang justru disimpan huruf kecil.
+   Tanpa ini placeholder "och" tampil "OCH", padahal yang tersimpan "och". */
+.lc-field--lower .lc-input input {
+  text-transform: lowercase;
+}

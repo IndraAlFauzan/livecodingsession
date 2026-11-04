@@ -3,8 +3,9 @@ import Button from "../ui/Button.jsx";
 import Card from "../ui/Card.jsx";
 import Icon from "../ui/Icon.jsx";
 import { toneForCourse } from "../layout/Sidebar.jsx";
+import TeacherCode from "./TeacherCode.jsx";
 
-export default function CourseCard({ name, detail, live, meetingCount, onOpen, onJoinLive, onLeave }) {
+export default function CourseCard({ name, teacher, detail, live, meetingCount, onOpen, onJoinLive, onLeave }) {
   const tone = toneForCourse(name);
   return (
     <Card className="lc-course">
@@ -26,7 +27,9 @@ export default function CourseCard({ name, detail, live, meetingCount, onOpen, o
       </div>
 
       <div>
-        <h3 className="lc-course__name">{name}</h3>
+        <h3 className="lc-course__name">
+          {name} <TeacherCode teacher={teacher} />
+        </h3>
         {detail && <p className="lc-course__meta">{detail}</p>}
       </div>
 

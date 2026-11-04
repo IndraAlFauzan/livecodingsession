@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import AccessCodeCard from "./AccessCodeCard.jsx";
+import CourseOwner from "./CourseOwner.jsx";
 import StudentRoster from "./StudentRoster.jsx";
 import LiveSessionCard from "./LiveSessionCard.jsx";
 import MeetingCard from "./MeetingCard.jsx";
@@ -12,7 +13,7 @@ import { formatDateTime } from "../../lib/api.js";
 import { derivedStatus, isRunning } from "../../utils/meetingStatus.js";
 import { MEETING_REFRESH_MS, FILTERS } from "./adminConstants.js";
 
-export default function CourseDetail({ api, course, onError, onCourseChanged, onLogout }) {
+export default function CourseDetail({ api, course, isAdmin, onError, onCourseChanged, onLogout }) {
   const [meetings, setMeetings] = useState(null);
   const [editingName, setEditingName] = useState(null);
   const [confirm, setConfirm] = useState(null);
@@ -266,6 +267,10 @@ export default function CourseDetail({ api, course, onError, onCourseChanged, on
           />
         )}
       </Card>
+
+      {isAdmin && (
+        <CourseOwner api={api} course={course} onError={onError} onChanged={onCourseChanged} key={`o${course.id}`} />
+      )}
 
       <StudentRoster api={api} courseId={course.id} onError={onError} key={course.id} />
 

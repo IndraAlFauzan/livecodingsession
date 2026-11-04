@@ -5,6 +5,10 @@ import ignore, { Ignore } from "ignore";
 
 export const IGNORE_FILE = ".livecodingignore";
 
+// Nilai bawaan backendUrl. Dipakai juga untuk mengenali dosen yang belum
+// mengarahkan extension-nya ke server kampus.
+export const BACKEND_BAWAAN = "ws://localhost:3000";
+
 // Selalu dipakai; setting liveCoding.exclude hanya menambah pola.
 const BUILT_IN_EXCLUDE = [
   // dependency & hasil build
@@ -89,7 +93,7 @@ export function getConfig() {
   const extraExclude = config.get<string[]>("exclude", []);
 
   return {
-    backendUrl: config.get<string>("backendUrl", "ws://localhost:3000").replace(/\/$/, ""),
+    backendUrl: config.get<string>("backendUrl", BACKEND_BAWAAN).replace(/\/$/, ""),
     teacherToken: config.get<string>("teacherToken", "dev-secret-token"),
     exclude: [...BUILT_IN_EXCLUDE, ...extraExclude],
     respectGitignore: config.get<boolean>("respectGitignore", true),

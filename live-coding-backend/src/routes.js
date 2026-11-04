@@ -1,8 +1,17 @@
 const express = require('express');
 const db = require('./db');
 const live = require('./live');
-const { requireTeacherToken } = require('./auth');
-const { hashPassword, verifyPassword, newSessionToken, tempPassword, cleanNim, checkPassword } = require('./studentAuth');
+const { requireTeacher, requireAdmin, mayTouchCourse, resolveTeacher, bearer } = require('./auth');
+const {
+  hashPassword,
+  verifyPassword,
+  newSessionToken,
+  tempPassword,
+  cleanNim,
+  cleanUsername,
+  cleanTeacherCode,
+  checkPassword,
+} = require('./studentAuth');
 const throttle = require('./loginThrottle');
 
 // Express 4 tidak menangkap penolakan promise dari handler async; pembungkus ini
@@ -21,18 +30,28 @@ function isPositiveInt(value) {
   return Number.isInteger(value) && value > 0 && value < 1000;
 }
 
-// Pencarian objek + 404 diulang di banyak rute; dijadikan satu di sini.
+// Pencarian objek + 404 + pemeriksaan kepemilikan, dijadikan satu di sini.
+// Sengaja di loader, bukan di tiap rute: rute baru otomatis ikut terlindungi.
+//
+// Mata kuliah milik dosen lain dijawab 404, bukan 403 -- jawaban 403 akan
+// membocorkan bahwa mata kuliah dengan id itu ada.
 function loadCourse(req, res, next) {
   const course = db.getCourseById(Number(req.params.id));
-  if (!course) return res.status(404).json({ error: 'Mata kuliah tidak ditemukan.' });
+  if (!course || !mayTouchCourse(req.auth, course)) {
+    return res.status(404).json({ error: 'Mata kuliah tidak ditemukan.' });
+  }
   req.course = course;
   next();
 }
 
 function loadMeeting(req, res, next) {
   const meeting = db.getMeeting(req.params.id);
-  if (!meeting) return res.status(404).json({ error: 'Pertemuan tidak ditemukan.' });
+  const course = meeting && db.getCourseById(meeting.courseId);
+  if (!meeting || !mayTouchCourse(req.auth, course)) {
+    return res.status(404).json({ error: 'Pertemuan tidak ditemukan.' });
+  }
   req.meeting = meeting;
+  req.course = course;
   next();
 }
 
@@ -60,18 +79,68 @@ function toStudentMeeting(meeting) {
 // ---------- admin (dosen) ----------
 
 const admin = express.Router();
-admin.use(requireTeacherToken);
 
-admin.get('/check', (_req, res) => res.json({ ok: true }));
+// Masuk sebagai dosen. Di depan dinding, karena di sinilah tanda sesinya dibuat.
+admin.post(
+  '/login',
+  aman(async (req, res) => {
+    const username = cleanUsername(req.body?.username);
+    const baris = username ? db.getTeacherRowByUsername(username) : null;
 
-admin.get('/courses', (_req, res) => {
-  res.json({ courses: db.listCourses() });
+    const sisa = username ? throttle.sisaKuncian(`dosen:${username}`) : 0;
+    if (sisa > 0) {
+      const menit = Math.ceil(sisa / 60000);
+      return res
+        .status(429)
+        .set('retry-after', String(Math.ceil(sisa / 1000)))
+        .json({ error: `Terlalu banyak percobaan. Coba lagi dalam ${menit} menit.` });
+    }
+
+    // Pesan sama untuk username tak dikenal, sandi salah, dan akun nonaktif --
+    // supaya tidak bisa dipakai menebak siapa yang terdaftar.
+    const salah = () => {
+      if (username) throttle.catatGagal(`dosen:${username}`);
+      return res.status(401).json({ error: 'Username atau kata sandi salah.' });
+    };
+    if (!baris || baris.active !== 1) return salah();
+    if (!(await verifyPassword(req.body?.password ?? '', baris.password_hash))) return salah();
+
+    throttle.hapusCatatan(`dosen:${username}`);
+    const token = db.createTeacherSession(baris.id, newSessionToken());
+    db.markTeacherLogin(baris.id);
+    res.json({ teacher: { id: baris.id, username: baris.username, code: baris.code, name: baris.name }, token });
+  }),
+);
+
+admin.use(requireTeacher);
+
+admin.post('/logout', (req, res) => {
+  db.deleteTeacherSession(bearer(req) ?? '');
+  res.status(204).end();
+});
+
+admin.get('/check', (req, res) => {
+  res.json({
+    ok: true,
+    admin: req.auth.admin,
+    teacher: req.auth.teacher && {
+      id: req.auth.teacher.id,
+      username: req.auth.teacher.username,
+      code: req.auth.teacher.code,
+      name: req.auth.teacher.name,
+    },
+  });
+});
+
+admin.get('/courses', (req, res) => {
+  res.json({ courses: db.listCourses(req.auth.teacherId) });
 });
 
 admin.post('/courses', (req, res) => {
   const name = cleanText(req.body?.name, 100);
   if (!name) return res.status(400).json({ error: 'Nama mata kuliah wajib diisi (maks. 100 karakter).' });
-  res.status(201).json({ course: db.createCourse(name) });
+  // Dibuat dosen -> miliknya. Dibuat admin kampus -> tanpa pemilik.
+  res.status(201).json({ course: db.createCourse(name, req.auth.teacherId) });
 });
 
 admin.patch('/courses/:id', loadCourse, (req, res) => {
@@ -85,10 +154,8 @@ admin.patch('/courses/:id', loadCourse, (req, res) => {
   res.json({ course: db.updateCourse(req.course.id, changes) });
 });
 
-admin.post('/courses/:id/regenerate-code', (req, res) => {
-  const course = db.regenerateAccessCode(Number(req.params.id));
-  if (!course) return res.status(404).json({ error: 'Mata kuliah tidak ditemukan.' });
-  res.json({ course });
+admin.post('/courses/:id/regenerate-code', loadCourse, (req, res) => {
+  res.json({ course: db.regenerateAccessCode(req.course.id) });
 });
 
 admin.get('/courses/:id/students', loadCourse, (req, res) => {
@@ -103,7 +170,10 @@ admin.post(
   aman(async (req, res) => {
     const nim = cleanNim(req.params.nim);
     const akun = nim ? db.getStudentRowByNim(nim) : null;
-    if (!akun) return res.status(404).json({ error: 'Mahasiswa tidak ditemukan.' });
+    // Dosen hanya boleh menolong mahasiswa di mata kuliahnya sendiri; kalau
+    // tidak, siapa pun yang punya akun dosen bisa mereset siapa saja.
+    const boleh = akun && (req.auth.admin || db.studentSharesCourseWith(akun.id, req.auth.teacherId));
+    if (!boleh) return res.status(404).json({ error: 'Mahasiswa tidak ditemukan.' });
 
     const sandi = tempPassword();
     db.setStudentPassword(akun.id, await hashPassword(sandi));
@@ -118,7 +188,83 @@ admin.post(
 
 // Jalan keluar untuk akun yang salah daftar; sesi dan riwayatnya ikut terhapus
 // lewat ON DELETE CASCADE.
-admin.delete('/students/:nim', (req, res) => {
+// ---------- akun dosen (admin kampus saja) ----------
+
+admin.get('/teachers', requireAdmin, (_req, res) => {
+  res.json({ teachers: db.listTeachers() });
+});
+
+admin.post(
+  '/teachers',
+  requireAdmin,
+  aman(async (req, res) => {
+    const username = cleanUsername(req.body?.username);
+    if (!username) {
+      return res.status(400).json({ error: 'Username 3-30 karakter: huruf, angka, titik, garis bawah, atau strip.' });
+    }
+
+    const code = cleanTeacherCode(req.body?.code);
+    if (!code) return res.status(400).json({ error: 'Kode dosen harus 2-10 huruf atau angka, misalnya OCH.' });
+
+    const name = cleanText(req.body?.name, 100);
+    if (!name) return res.status(400).json({ error: 'Nama dosen tidak valid.' });
+
+    if (db.getTeacherRowByUsername(username)) {
+      return res.status(409).json({ error: `Username ${username} sudah dipakai.` });
+    }
+    if (db.getTeacherRowByCode(code)) {
+      return res.status(409).json({ error: `Kode dosen ${code} sudah dipakai.` });
+    }
+
+    // Sandi awal dibuat server dan ditampilkan sekali, sama seperti reset
+    // mahasiswa -- jadi tidak ada sandi yang dikirim lewat chat.
+    const sandi = tempPassword();
+    const dosen = db.createTeacher({ username, code, name, passwordHash: await hashPassword(sandi) });
+    res.status(201).json({ teacher: dosen, password: sandi });
+  }),
+);
+
+admin.post(
+  '/teachers/:id/reset-password',
+  requireAdmin,
+  aman(async (req, res) => {
+    const dosen = db.getTeacherById(Number(req.params.id));
+    if (!dosen) return res.status(404).json({ error: 'Dosen tidak ditemukan.' });
+
+    const sandi = tempPassword();
+    db.setTeacherPassword(dosen.id, await hashPassword(sandi));
+    const dicabut = db.deleteSessionsOfTeacher(dosen.id);
+    res.json({ teacher: dosen, password: sandi, sessionsRevoked: dicabut });
+  }),
+);
+
+// Dinonaktifkan, bukan dihapus: mata kuliahnya tetap utuh dan tidak kehilangan
+// pemilik, tapi dosennya langsung tidak bisa masuk lagi.
+admin.patch('/teachers/:id', requireAdmin, (req, res) => {
+  const dosen = db.getTeacherById(Number(req.params.id));
+  if (!dosen) return res.status(404).json({ error: 'Dosen tidak ditemukan.' });
+
+  if (req.body?.active !== undefined) {
+    db.setTeacherActive(dosen.id, Boolean(req.body.active));
+    if (!req.body.active) db.deleteSessionsOfTeacher(dosen.id);
+  }
+  res.json({ teacher: db.getTeacherById(dosen.id) });
+});
+
+// Memindahkan mata kuliah ke dosen lain, atau melepasnya kembali ke admin.
+admin.patch('/courses/:id/owner', requireAdmin, (req, res) => {
+  const course = db.getCourseById(Number(req.params.id));
+  if (!course) return res.status(404).json({ error: 'Mata kuliah tidak ditemukan.' });
+
+  const teacherId = req.body?.teacherId ?? null;
+  if (teacherId !== null && !db.getTeacherById(Number(teacherId))) {
+    return res.status(404).json({ error: 'Dosen tidak ditemukan.' });
+  }
+  db.setCourseOwner(course.id, teacherId === null ? null : Number(teacherId));
+  res.json({ course: db.getCourseById(course.id) });
+});
+
+admin.delete('/students/:nim', requireAdmin, (req, res) => {
   const nim = cleanNim(req.params.nim);
   const akun = nim ? db.getStudentRowByNim(nim) : null;
   if (!akun) return res.status(404).json({ error: 'Mahasiswa tidak ditemukan.' });
@@ -341,6 +487,7 @@ student.get('/home', requireStudent, (req, res) => {
   const courses = db.listEnrolledCourses(req.student.id).map((c) => ({
     slug: c.slug,
     name: c.name,
+    teacher: c.teacherCode ? { code: c.teacherCode, name: c.teacherName } : null,
     joinedAt: c.joinedAt,
     meetingCount: c.meetingCount,
     latest: c.latestNumber == null ? null : { number: c.latestNumber, title: c.latestTitle },
@@ -348,7 +495,7 @@ student.get('/home', requireStudent, (req, res) => {
   }));
 
   const recent = db.listRecentMeetingsFor(req.student.id).map((m) => ({
-    course: { slug: m.courseSlug, name: m.courseName },
+    course: { slug: m.courseSlug, name: m.courseName, teacher: m.teacherCode ? { code: m.teacherCode } : null },
     meeting: { id: m.id, number: m.number, title: m.title, status: m.status, startedAt: m.startedAt },
     lastSeen: m.lastSeen,
   }));
@@ -371,7 +518,7 @@ student.post('/courses', requireStudent, (req, res) => {
   if (!course) return res.status(404).json({ error: 'Kode akses tidak valid atau sudah dinonaktifkan.' });
 
   db.enrollStudent(course.id, req.student.id);
-  res.json({ course: { slug: course.slug, name: course.name } });
+  res.json({ course: { slug: course.slug, name: course.name, teacher: course.teacher } });
 });
 
 student.get('/courses', requireStudent, (req, res) => {
@@ -393,7 +540,7 @@ student.get('/courses/:slug', requireStudent, (req, res) => {
     return res.status(403).json({ error: 'Kamu belum bergabung di mata kuliah ini.' });
   }
   res.json({
-    course: { slug: course.slug, name: course.name },
+    course: { slug: course.slug, name: course.name, teacher: course.teacher },
     meetings: db.listMeetings(course.id, { studentView: true }).map(toStudentMeeting),
   });
 });

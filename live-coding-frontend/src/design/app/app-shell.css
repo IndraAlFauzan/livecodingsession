@@ -106,3 +106,28 @@
     display: inline-flex;
   }
 }
+
+/* Nama mata kuliah di sidebar boleh terpotong; kode dosennya tidak.
+   Kelas paralel bernama sama, jadi "Pemrogram… OCH" masih bisa dibedakan
+   sementara "Pemrograman Mob…" tidak. */
+.lc-nav__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lc-nav__kode {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.lc-nav[aria-current="page"] .lc-nav__kode {
+  color: inherit;
+  opacity: 0.75;
+}

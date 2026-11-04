@@ -8,6 +8,7 @@ import { canShareFile, normalizeRelativePath, readTextFile, isIgnoredPath, isAss
 import { detectLanguage } from "./languageDetector";
 import { debounceByKey, clearDebounces } from "./debounce";
 import { registerHiddenFiles } from "./hiddenFiles";
+import { initAuth, getCredential, login, logout, refreshIdentitas, labelIdentitas } from "./auth";
 import { SocketPayload } from "./types";
 
 type LiveTarget = {
@@ -50,6 +51,7 @@ const RECONNECT_STEPS = [1000, 2000, 4000, 8000, 10000];
 const sentPaths = new Set<string>();
 
 export function activate(context: vscode.ExtensionContext) {
+  initAuth(context);
   statusItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
   statusItem.command = "liveCoding.menu";
 
@@ -65,7 +67,20 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("liveCoding.toggleSession", toggleSession),
     vscode.commands.registerCommand("liveCoding.refreshSession", () => render()),
     vscode.commands.registerCommand("liveCoding.menu", showLiveMenu),
+    vscode.commands.registerCommand("liveCoding.login", async () => {
+      if (await login()) {
+        await refreshIdentitas();
+        render();
+      }
+    }),
+    vscode.commands.registerCommand("liveCoding.logout", async () => {
+      await logout();
+      render();
+    }),
   );
+
+  // Identitas dipakai status bar dan panel; diambil sekali saat aktivasi.
+  refreshIdentitas().then(() => render());
 
   render();
 
@@ -87,7 +102,7 @@ async function startSession() {
 
   try {
     const target = await pickTarget(workspace.name);
-    if (target) startLive(workspace, target);
+    if (target) void startLive(workspace, target);
   } catch (error) {
     vscode.window.showErrorMessage(`Live Coding: ${(error as Error).message}`);
   }
@@ -257,7 +272,9 @@ function render() {
 
   if (current === "idle") {
     statusItem.text = "$(radio-tower) Live Coding";
-    statusItem.tooltip = "Mulai sesi live coding";
+    // Saat menganggur, tooltip dipakai memberi tahu sedang masuk sebagai siapa --
+    // penting begitu satu komputer dipakai bergantian beberapa dosen.
+    statusItem.tooltip = `Mulai sesi live coding\nMasuk sebagai: ${labelIdentitas()}`;
     statusItem.backgroundColor = undefined;
   } else if (current === "connecting") {
     statusItem.text = "$(sync~spin) Live Coding: menghubungkan...";
@@ -284,6 +301,7 @@ function render() {
     label: live?.target.label ?? null,
     accessCode: live?.accessCode ?? null,
     studentUrl: live?.studentUrl ?? null,
+    identitas: labelIdentitas(),
     viewers,
   });
 }
@@ -305,8 +323,13 @@ async function toggleSession() {
 
 // ---------- sesi live ----------
 
-function startLive(workspace: vscode.WorkspaceFolder, target: LiveTarget) {
+async function startLive(workspace: vscode.WorkspaceFolder, target: LiveTarget) {
   const config = getConfig();
+  const kredensial = await getCredential();
+  if (!kredensial) {
+    vscode.window.showErrorMessage("Belum masuk. Jalankan Live Coding: Masuk dulu.");
+    return;
+  }
   live = { target, workspace, joined: false, rejected: false, studentUrl: null, accessCode: null };
   stopping = false;
   sentPaths.clear();
@@ -318,7 +341,7 @@ function startLive(workspace: vscode.WorkspaceFolder, target: LiveTarget) {
       sendMessage({
         type: "teacher:join",
         meetingId: target.meetingId,
-        teacherToken: config.teacherToken,
+        teacherToken: kredensial,
         projectName: workspace.name,
         continuesFrom: target.continuesFrom,
       });
@@ -354,14 +377,14 @@ function scheduleReconnect(workspace: vscode.WorkspaceFolder, target: LiveTarget
     vscode.window
       .showWarningMessage("Live Coding: koneksi tidak kembali. Sesi dihentikan.", "Mulai lagi")
       .then((choice) => {
-        if (choice && !isConnected()) startLive(workspace, target);
+        if (choice && !isConnected()) void startLive(workspace, target);
       });
     return;
   }
 
   const delay = RECONNECT_STEPS[Math.min(attempt - 1, RECONNECT_STEPS.length - 1)];
   const timer = setTimeout(() => {
-    if (reconnect) startLive(workspace, target);
+    if (reconnect) void startLive(workspace, target);
   }, delay);
   reconnect = { workspace, target, attempt, timer };
   render();
@@ -478,7 +501,7 @@ async function showLiveMenu() {
     if (choice === "Coba sambung sekarang") {
       const { workspace, target, timer } = reconnect;
       if (timer) clearTimeout(timer);
-      startLive(workspace, target);
+      void startLive(workspace, target);
     }
     if (choice === "Hentikan sesi") stopSession();
     return;

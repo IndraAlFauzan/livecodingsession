@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import CourseDetail from "./CourseDetail.jsx";
+import TeacherRoster from "./TeacherRoster.jsx";
 import AppHeader from "../layout/AppHeader.jsx";
 import AppLayout from "../layout/AppLayout.jsx";
 import Sidebar from "../layout/Sidebar.jsx";
@@ -9,7 +10,7 @@ import Copyright from "../../utils/copyright.jsx";
 import { MEETING_REFRESH_MS } from "./adminConstants.js";
 import { isRunning } from "../../utils/meetingStatus.js";
 
-export default function AdminDashboard({ api, onLogout }) {
+export default function AdminDashboard({ api, identitas, onLogout }) {
   const [courses, setCourses] = useState(null);
   const [liveCourseIds, setLiveCourseIds] = useState(() => new Set());
   const [searchParams, setSearchParams] = useSearchParams();
@@ -17,6 +18,7 @@ export default function AdminDashboard({ api, onLogout }) {
   const setSelectedId = useCallback((id) => setSearchParams({ mk: String(id) }, { replace: true }), [setSearchParams]);
   const [newCourseName, setNewCourseName] = useState("");
   const [addingCourse, setAddingCourse] = useState(false);
+  const [halaman, setHalaman] = useState("mk");
   const [error, setError] = useState(null);
 
   const handleError = useCallback(
@@ -70,12 +72,27 @@ export default function AdminDashboard({ api, onLogout }) {
 
   const list = courses || [];
   const selected = list.find((course) => course.id === selectedId) || list[0] || null;
+  const isAdmin = Boolean(identitas?.admin);
+  const dosen = identitas?.teacher;
 
   const sidebar = (
     <Sidebar
       logoSrc="/live-coding-mark.svg"
-      workspace="Ruang dosen"
-      menu={[{ icon: "book", label: "Mata kuliah", count: list.length, current: true }]}
+      workspace={dosen ? `${dosen.code} · ${dosen.name}` : "Admin kampus"}
+      menu={[
+        {
+          icon: "book",
+          label: "Mata kuliah",
+          count: list.length,
+          current: halaman === "mk",
+          onClick: () => setHalaman("mk"),
+        },
+        // Mengelola akun dosen terlalu luas untuk satu dosen; server juga
+        // menolaknya dengan 403, jadi menunya tidak perlu ada.
+        ...(isAdmin
+          ? [{ icon: "users", label: "Dosen", current: halaman === "dosen", onClick: () => setHalaman("dosen") }]
+          : []),
+      ]}
       courses={list.map((course) => ({ ...course, live: liveCourseIds.has(course.id) }))}
       currentCourseId={selected?.id}
       onSelectCourse={setSelectedId}
@@ -109,11 +126,21 @@ export default function AdminDashboard({ api, onLogout }) {
         </Card>
       )}
 
-      {selected ? (
+      {halaman === "dosen" ? (
+        <>
+          <AppHeader
+            crumb="Admin kampus"
+            title="Dosen"
+            actions={<IconButton icon="logout" label="Keluar dari admin" onClick={onLogout} />}
+          />
+          <TeacherRoster api={api} onError={handleError} />
+        </>
+      ) : selected ? (
         <CourseDetail
           key={selected.id}
           api={api}
           course={selected}
+          isAdmin={isAdmin}
           onError={handleError}
           onCourseChanged={loadCourses}
           onLogout={onLogout}

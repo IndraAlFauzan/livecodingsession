@@ -36,6 +36,7 @@ export default function StudentShell() {
         id: course.slug,
         name: course.name,
         live: Boolean(course.live),
+        teacherCode: course.teacher?.code || null,
         meetingCount: course.meetingCount,
       }))}
       currentCourseId={slug}

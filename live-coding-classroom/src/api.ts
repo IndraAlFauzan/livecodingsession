@@ -1,4 +1,5 @@
-import { getConfig, getHttpBaseUrl } from "./config";
+import { getHttpBaseUrl } from "./config";
+import { getCredential } from "./auth";
 
 export type Course = {
   id: number;
@@ -28,13 +29,13 @@ export class ApiError extends Error {
 }
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const { teacherToken } = getConfig();
+  const teacherToken = await getCredential();
   let response: Response;
   try {
     response = await fetch(`${getHttpBaseUrl()}/api/admin${path}`, {
       method,
       headers: {
-        authorization: `Bearer ${teacherToken}`,
+        ...(teacherToken ? { authorization: `Bearer ${teacherToken}` } : {}),
         ...(body ? { "content-type": "application/json" } : {}),
       },
       body: body ? JSON.stringify(body) : undefined,
@@ -46,7 +47,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   const data = (await response.json().catch(() => null)) as { error?: string } | null;
   if (!response.ok) {
     if (response.status === 401) {
-      throw new ApiError("Teacher token salah. Periksa setting liveCoding.teacherToken.", 401);
+      throw new ApiError("Sesi dosen tidak berlaku. Jalankan Live Coding: Masuk.", 401);
     }
     throw new ApiError(data?.error || `Backend error (${response.status}).`, response.status);
   }

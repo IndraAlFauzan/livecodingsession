@@ -38,7 +38,9 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           {/* Mode fokus: isinya sama, tapi tanpa kerangka. */}
           <Route path="/fokus/mk/:slug/p/:meetingId" element={mahasiswa(<MeetingPage focus />)} />
           <Route path="/pratinjau/mk/:slug/p/:meetingId" element={<MeetingPreviewPage />} />
-          <Route path="/admin" element={<AdminPage />} />
+          {/* Dua pintu terpisah: dosen tidak perlu tahu pintu admin ada. */}
+          <Route path="/dosen" element={<AdminPage />} />
+          <Route path="/admin" element={<AdminPage mode="admin" />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </StudentAuthProvider>

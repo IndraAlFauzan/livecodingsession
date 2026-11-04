@@ -161,3 +161,26 @@ a.lc-btn {
   font-weight: 700;
   letter-spacing: -0.015em;
 }
+
+/* Kode dosen: penanda kecil di samping nama mata kuliah. Harus terbaca sebagai
+   label, bukan bagian dari namanya -- karena itu monospace dan lebih redup. */
+.lc-kodedosen {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  vertical-align: middle;
+}
+
+/* Di kartu sesi live latarnya sudah berwarna, jadi penandanya ikut menyesuaikan. */
+.lc-now .lc-kodedosen {
+  background: var(--surface);
+  border-color: var(--live-soft);
+  color: var(--live-ink);
+}

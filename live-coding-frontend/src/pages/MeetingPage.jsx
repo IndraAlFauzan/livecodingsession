@@ -65,7 +65,7 @@ export function MeetingPreviewPage() {
       <div className="lc-page">
         <div className="lc-page__body">
           <p className="lc-muted">
-            Pratinjau ini hanya untuk dosen. Masuk dulu di <Link to="/admin">halaman admin</Link>.
+            Pratinjau ini hanya untuk dosen. Masuk dulu di <Link to="/dosen">halaman dosen</Link>.
           </p>
         </div>
       </div>

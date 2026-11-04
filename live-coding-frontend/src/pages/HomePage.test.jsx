@@ -13,6 +13,7 @@ const SEPI = { slug: "basis-data", name: "Basis Data", meetingCount: 2, latest: 
 const LIVE = {
   slug: "pemrograman-mobile",
   name: "Pemrograman Mobile",
+  teacher: { code: "OCH", name: "Oktaviani Cahya H." },
   meetingCount: 7,
   latest: { number: 7, title: "Provider" },
   live: { id: "p7", number: 7, title: "Provider", startedAt: "2026-10-31T01:00:00.000Z", reconnecting: false },
@@ -52,6 +53,13 @@ describe("HomePage", () => {
     pasang({ courses: [SEPI] });
 
     expect(screen.getByText(/tidak ada sesi yang sedang berlangsung/i)).toBeInTheDocument();
+  });
+
+  // Kelas paralel bernama sama; kode dosen yang membedakan.
+  it("menampilkan kode dosen di kartu sesi live", () => {
+    pasang({ courses: [LIVE] });
+
+    expect(screen.getByText("OCH")).toBeInTheDocument();
   });
 
   it("menonjolkan sesi yang sedang live", () => {

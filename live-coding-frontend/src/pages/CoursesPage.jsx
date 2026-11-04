@@ -70,6 +70,7 @@ export default function CoursesPage() {
               <CourseCard
                 key={course.slug}
                 name={course.name}
+                teacher={course.teacher}
                 detail={detailUntuk(course)}
                 live={Boolean(course.live)}
                 meetingCount={course.meetingCount}

@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import AppHeader from "../components/layout/AppHeader.jsx";
 import { Badge, Button, Card, EmptyState, Icon } from "../components/ui/index.js";
+import TeacherCode from "../components/student/TeacherCode.jsx";
 import { useStudentAuth } from "../hooks/useStudentAuth.jsx";
 import { formatDateTime } from "../lib/api.js";
 import { storage } from "../lib/storage.js";
@@ -19,7 +20,9 @@ function LiveCard({ course, onOpen, onFocus }) {
         {live.reconnecting && <span className="lc-now__warn">Koneksi dosen terputus, menunggu tersambung lagi</span>}
       </div>
       <div>
-        <h2 className="lc-now__course">{course.name}</h2>
+        <h2 className="lc-now__course">
+          {course.name} <TeacherCode teacher={course.teacher} />
+        </h2>
         <p className="lc-now__meeting">{meetingName(live)}</p>
       </div>
       <div className="lc-now__actions">
@@ -107,7 +110,9 @@ export default function HomePage() {
               {recent.map((item) => (
                 <Card key={item.meeting.id} className="lc-recent">
                   <div className="lc-recent__top">
-                    <span className="lc-recent__course">{item.course.name}</span>
+                    <span className="lc-recent__course">
+                      {item.course.name} <TeacherCode teacher={item.course.teacher} />
+                    </span>
                     {/* Kata "Live" tidak boleh tampil dua gaya di layar yang sama. */}
                     {item.meeting.status === "live" ? (
                       <Badge status="live" size="sm" />

@@ -3,7 +3,7 @@ const WebSocket = require('ws');
 const { config } = require('./config');
 const db = require('./db');
 const live = require('./live');
-const { isTeacherToken } = require('./auth');
+const { resolveTeacher, mayTouchCourse } = require('./auth');
 const { isSafeRelativePath, isValidMessage } = require('./validation');
 const { send, parseMessage } = require('./wsUtils');
 
@@ -76,10 +76,17 @@ function attachRealtime(server) {
   // ---------- handlers ----------
 
   function handleTeacherJoin(ws, message) {
-    if (!isTeacherToken(message.teacherToken)) return reject(ws, 'Token dosen tidak valid.');
+    // Menerima kunci admin kampus maupun tanda sesi milik satu dosen.
+    const siapa = resolveTeacher(message.teacherToken);
+    if (!siapa) return reject(ws, 'Sesi dosen tidak valid. Masuk lagi dari VS Code.');
 
     const meeting = typeof message.meetingId === 'string' ? db.getMeeting(message.meetingId) : null;
     if (!meeting) return reject(ws, 'Pertemuan tidak ditemukan.');
+
+    // Dosen hanya boleh membuka sesi di mata kuliahnya sendiri.
+    if (!mayTouchCourse(siapa, db.getCourseById(meeting.courseId))) {
+      return reject(ws, 'Pertemuan ini bukan milik mata kuliah yang kamu ampu.');
+    }
 
     const room = live.getRoom(meeting.id);
     if (room.teacher && room.teacher !== ws) {
@@ -130,8 +137,11 @@ function attachRealtime(server) {
 
     // Dosen boleh menengok halaman mahasiswa untuk memeriksa apa yang mereka
     // lihat. Jalurnya dipisah dari jalur mahasiswa supaya tidak ada akun palsu
-    // bernama "Dosen" yang ikut tercatat sebagai penonton.
-    const pratinjau = isTeacherToken(message.teacherToken);
+    // bernama "Dosen" yang ikut tercatat sebagai penonton. Hanya untuk mata
+    // kuliah yang dia ampu.
+    const dosen = message.teacherToken ? resolveTeacher(message.teacherToken) : null;
+    const pratinjau =
+      Boolean(dosen) && Boolean(meeting) && mayTouchCourse(dosen, db.getCourseById(meeting.courseId));
 
     // Identitas datang dari tanda sesi, bukan dari badan pesan. Klien tidak lagi
     // bisa menyebut nama sendiri, jadi tidak ada cara menyamar jadi orang lain.

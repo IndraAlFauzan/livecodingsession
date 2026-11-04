@@ -47,7 +47,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   const data = (await response.json().catch(() => null)) as { error?: string } | null;
   if (!response.ok) {
     if (response.status === 401) {
-      throw new ApiError("Sesi dosen tidak berlaku. Jalankan Live Coding: Masuk.", 401);
+      throw new ApiError("Kredensial tidak berlaku lagi. Jalankan Live Coding: Masuk.", 401);
     }
     throw new ApiError(data?.error || `Backend error (${response.status}).`, response.status);
   }

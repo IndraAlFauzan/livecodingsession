@@ -5,9 +5,10 @@ import ignore, { Ignore } from "ignore";
 
 export const IGNORE_FILE = ".livecodingignore";
 
-// Nilai bawaan backendUrl. Dipakai juga untuk mengenali dosen yang belum
-// mengarahkan extension-nya ke server kampus.
-export const BACKEND_BAWAAN = "ws://localhost:3000";
+// Server kampus. Jadi nilai bawaan supaya dosen tidak perlu menyetel apa pun:
+// pasang extension, jalankan Masuk, selesai. Yang mengembangkan backend sendiri
+// menimpanya lewat setelan liveCoding.backendUrl.
+export const BACKEND_BAWAAN = "wss://belivecoding.devrisetiaf.cloud";
 
 // Selalu dipakai; setting liveCoding.exclude hanya menambah pola.
 const BUILT_IN_EXCLUDE = [

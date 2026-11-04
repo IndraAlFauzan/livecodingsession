@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { BACKEND_BAWAAN, getConfig, getHttpBaseUrl } from "./config";
+import { getConfig, getHttpBaseUrl } from "./config";
 
 // Kredensial disimpan di SecretStorage, bukan settings.json.
 //
@@ -26,8 +26,15 @@ export async function getCredential(): Promise<string | undefined> {
 
   // Jalur warisan: dosen yang sudah memakai setting lama tetap bisa bekerja
   // sampai dia masuk lewat perintah login.
-  const dariSetting = vscode.workspace.getConfiguration("liveCoding").get<string>("teacherToken", "");
-  return dariSetting || undefined;
+  //
+  // inspect(), bukan get(). get() mengembalikan nilai bawaan dari package.json
+  // kalau setelannya tidak diisi -- artinya extension selalu mengira punya
+  // kredensial, panel menawarkan "Mulai sesi live", dan Keluar pun tidak
+  // menolong karena nilainya muncul lagi. inspect() hanya melihat yang memang
+  // disetel orang.
+  const info = vscode.workspace.getConfiguration("liveCoding").inspect<string>("teacherToken");
+  const dariSetting = info?.workspaceFolderValue ?? info?.workspaceValue ?? info?.globalValue;
+  return dariSetting?.trim() || undefined;
 }
 
 export async function setCredential(nilai: string | undefined) {
@@ -51,42 +58,34 @@ export function labelIdentitas(): string {
   return identitas.teacher ? `${identitas.teacher.code} · ${identitas.teacher.name}` : "Dosen";
 }
 
-// Alamat server dipakai ulang sampai URL-nya benar; orang biasanya menyalin
-// alamat halaman admin yang berawalan https, jadi itu diterima dan diubah.
-function keWebSocket(nilai: string): string | null {
-  const bersih = nilai.trim().replace(/\/+$/, "");
-  if (!bersih) return null;
-  const ws = bersih.replace(/^http(s?):\/\//, "ws$1://");
-  return /^wss?:\/\/[^\s/]+/.test(ws) ? ws : null;
-}
+// Mengembalikan identitas kalau kredensialnya sah, null kalau tidak. Pesan
+// galatnya dibedakan: token salah dan server tak terjangkau butuh tindakan
+// yang berbeda.
+async function periksaToken(token: string): Promise<Identitas | null> {
+  let response: Response;
+  try {
+    response = await fetch(`${getHttpBaseUrl()}/api/admin/check`, {
+      headers: { authorization: `Bearer ${token}` },
+    });
+  } catch {
+    vscode.window.showErrorMessage(`Tidak bisa terhubung ke backend (${getHttpBaseUrl()}).`);
+    return null;
+  }
 
-// Bawaan menunjuk ke localhost. Tanpa langkah ini tiap dosen akan menabrak
-// "tidak bisa terhubung" dulu, lalu harus diberi tahu soal satu setelan.
-async function pastikanBackend(): Promise<boolean> {
-  const config = vscode.workspace.getConfiguration("liveCoding");
-  if (config.get<string>("backendUrl", BACKEND_BAWAAN) !== BACKEND_BAWAAN) return true;
+  if (response.status === 401) {
+    vscode.window.showErrorMessage("Token tidak cocok dengan TEACHER_TOKEN di server.");
+    return null;
+  }
+  if (!response.ok) {
+    vscode.window.showErrorMessage(`Backend menolak (${response.status}).`);
+    return null;
+  }
 
-  const jawaban = await vscode.window.showInputBox({
-    title: "Alamat server Live Coding",
-    prompt: "Tanyakan ke admin kampus. Biarkan apa adanya kalau kamu menjalankan backend di komputer sendiri.",
-    value: BACKEND_BAWAAN,
-    ignoreFocusOut: true,
-    validateInput: (nilai) =>
-      keWebSocket(nilai) ? null : "Harus berupa alamat ws:// atau wss:// — misalnya wss://api.kampus.ac.id",
-  });
-  if (jawaban === undefined) return false;
-
-  const url = keWebSocket(jawaban);
-  if (!url) return false;
-  // Disimpan sebagai setelan User: satu dosen memakai server yang sama untuk
-  // semua project-nya, dan alamat server bukan rahasia.
-  await config.update("backendUrl", url, vscode.ConfigurationTarget.Global);
-  return true;
+  const data = (await response.json()) as Identitas;
+  return { admin: Boolean(data.admin), teacher: data.teacher ?? null };
 }
 
 export async function login(): Promise<boolean> {
-  if (!(await pastikanBackend())) return false;
-
   const cara = await vscode.window.showQuickPick(
     [
       { label: "Masuk sebagai dosen", detail: "Email dan kata sandi dari admin kampus", id: "dosen" },
@@ -104,7 +103,16 @@ export async function login(): Promise<boolean> {
       ignoreFocusOut: true,
     });
     if (!token?.trim()) return false;
+
+    // Diperiksa dulu, baru disimpan. Menyimpan tanpa memeriksa membuat panel
+    // mengira sudah masuk padahal setiap permintaan nanti ditolak 401 --
+    // salah ketik satu karakter berakhir di galat yang membingungkan.
+    const siapa = await periksaToken(token.trim());
+    if (!siapa) return false;
+
     await setCredential(token.trim());
+    setIdentitas(siapa);
+    vscode.window.showInformationMessage("Masuk sebagai admin kampus.");
     return true;
   }
 
@@ -169,28 +177,42 @@ export async function logout() {
   vscode.window.showInformationMessage("Sudah keluar dari Live Coding.");
 }
 
-// Dipakai saat aktivasi dan setelah login, untuk tahu sedang masuk sebagai siapa.
-export async function refreshIdentitas(): Promise<Identitas | null> {
+// Dipakai saat aktivasi dan setelah login.
+//
+// Tiga hasil yang berbeda, dan bedanya penting: "ditolak" harus membuang
+// kredensialnya supaya panel kembali menawarkan Masuk, sementara "server tidak
+// terjangkau" tidak boleh -- WiFi kampus putus sebentar bukan alasan menyuruh
+// dosen masuk ulang.
+export type HasilPeriksa = "masuk" | "ditolak" | "luring" | "kosong";
+
+export async function refreshIdentitas(): Promise<HasilPeriksa> {
   const token = await getCredential();
   if (!token) {
     setIdentitas(null);
-    return null;
+    return "kosong";
   }
+
+  let response: Response;
   try {
-    const response = await fetch(`${getHttpBaseUrl()}/api/admin/check`, {
+    response = await fetch(`${getHttpBaseUrl()}/api/admin/check`, {
       headers: { authorization: `Bearer ${token}` },
     });
-    if (!response.ok) {
-      setIdentitas(null);
-      return null;
-    }
-    const data = (await response.json()) as Identitas;
-    setIdentitas({ admin: Boolean(data.admin), teacher: data.teacher ?? null });
-    return getIdentitas();
   } catch {
-    // Backend tidak terjangkau; jangan anggap kredensialnya salah.
-    return getIdentitas();
+    return "luring";
   }
+
+  if (response.status === 401) {
+    // Kredensialnya memang sudah tidak berlaku: dicabut admin, akun
+    // dinonaktifkan, atau salah sejak awal. Dibuang supaya tidak menyangkut.
+    setIdentitas(null);
+    await setCredential(undefined);
+    return "ditolak";
+  }
+  if (!response.ok) return "luring";
+
+  const data = (await response.json()) as Identitas;
+  setIdentitas({ admin: Boolean(data.admin), teacher: data.teacher ?? null });
+  return "masuk";
 }
 
 export { getConfig };

@@ -89,8 +89,11 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   // Identitas dipakai status bar dan panel; diambil sekali saat aktivasi.
+  // Kalau server menolak kredensialnya, refreshIdentitas sudah membuangnya --
+  // status masuk dihitung ulang supaya panel kembali menawarkan Masuk.
   segarkanStatusMasuk()
     .then(() => refreshIdentitas())
+    .then(() => segarkanStatusMasuk())
     .then(() => render());
 
   render();

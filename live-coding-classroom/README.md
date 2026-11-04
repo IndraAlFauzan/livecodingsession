@@ -26,7 +26,7 @@ Klik kanan file atau folder di Explorer (atau di tab editor), lalu pilih **Sembu
 
 | Setting | Keterangan |
 |---|---|
-| `liveCoding.backendUrl` | URL WebSocket backend, contoh `ws://localhost:3000` atau `wss://api.domainkamu.com` |
+| `liveCoding.backendUrl` | Sudah terisi server kampus. Ubah hanya kalau menjalankan backend sendiri |
 | `liveCoding.teacherToken` | **Usang.** Dipindahkan ke penyimpanan rahasia VS Code; jalankan `Live Coding: Masuk` lalu hapus setelan ini |
 | `liveCoding.exclude` | Pola **tambahan** yang tidak dibagikan (format .gitignore) |
 | `liveCoding.respectGitignore` | Ikut menyembunyikan isi `.gitignore` proyek (bawaan: hidup) |
@@ -44,13 +44,12 @@ Folder yang jadi kosong setelah penyaringan ikut dibuang — folder kosong seper
 
 ## Masuk sebagai dosen
 
-Jalankan **Live Coding: Masuk** dari Command Palette. Kalau `liveCoding.backendUrl` masih
-bawaan (`ws://localhost:3000`), alamat server ditanyakan lebih dulu — alamat berawalan
-`https://` diterima dan diubah sendiri jadi `wss://`, karena orang biasanya menyalin alamat
-halaman admin. Tersimpan sebagai setelan User; alamat server bukan rahasia.
+Jalankan **Live Coding: Masuk** dari Command Palette, lalu pilih: sebagai **dosen** dengan
+username + kata sandi dari admin kampus, atau sebagai **admin kampus** dengan `TEACHER_TOKEN`.
 
-Lalu dua pilihan: sebagai **dosen** dengan username + kata sandi dari admin kampus, atau sebagai
-**admin kampus** dengan `TEACHER_TOKEN`.
+**Dosen tidak perlu menyetel apa pun.** `liveCoding.backendUrl` sudah berisi server kampus
+sebagai nilai bawaan; yang mengembangkan backend sendiri menimpanya ke
+`ws://localhost:3000`.
 
 Kredensialnya disimpan di **SecretStorage** VS Code, bukan `settings.json`. Setelan lama masih
 dibaca sebagai cadangan supaya yang sudah memakainya tidak mendadak terkunci — tapi

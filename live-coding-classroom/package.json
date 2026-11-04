@@ -2,7 +2,7 @@
   "name": "live-coding-classroom",
   "displayName": "Live Coding Classroom",
   "description": "Share VS Code project file tree and file changes to students in real time.",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "publisher": "your-name",
   "engines": {
     "vscode": "^1.90.0"
@@ -58,12 +58,12 @@
       },
       {
         "command": "liveCoding.login",
-        "title": "Live Coding: Masuk",
+        "title": "Masuk",
         "category": "Live Coding"
       },
       {
         "command": "liveCoding.logout",
-        "title": "Live Coding: Keluar",
+        "title": "Keluar",
         "category": "Live Coding"
       }
     ],
@@ -72,12 +72,12 @@
       "properties": {
         "liveCoding.backendUrl": {
           "type": "string",
-          "default": "ws://localhost:3000",
-          "description": "URL WebSocket backend. Contoh: ws://localhost:3000 atau wss://api.domainkamu.com"
+          "default": "wss://belivecoding.devrisetiaf.cloud",
+          "description": "Alamat server Live Coding. Sudah terisi server kampus — ubah hanya kalau kamu menjalankan backend sendiri, misalnya ws://localhost:3000."
         },
         "liveCoding.teacherToken": {
           "type": "string",
-          "default": "dev-secret-token",
+          "default": "",
           "description": "Usang. Masih dibaca agar setelan lama tetap jalan, tapi pakai Live Coding: Masuk.",
           "markdownDeprecationMessage": "Dipindahkan ke penyimpanan rahasia VS Code. Jalankan **Live Coding: Masuk**, lalu hapus setelan ini — nilainya di sini ikut tersinkron ke akun dan gampang ter-commit."
         },
